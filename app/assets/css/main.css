@@ -87,3 +87,16 @@
 :root {
   --ui-radius: 0.125rem;
 }
+
+/* Death's voice — the one reusable treatment (R8). Death speaks in a flat
+   monotone rendered in small caps with no quotation marks: serif, uppercase,
+   letter-spaced, unhurried. Reserved for headlines and empty/loading states;
+   functional UI never wears it (R9). Applied via the <VoiceLine> component. */
+.voice-death {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
