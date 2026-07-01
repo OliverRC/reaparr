@@ -2,7 +2,9 @@
 useHead({
   meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1' }],
   link: [{ rel: 'icon', href: '/favicon.ico' }],
-  htmlAttrs: { lang: 'en' }
+  // Dark-lock: `data-color-mode-forced` overrides any stored/system preference,
+  // so even a returning visitor who previously chose light renders dark.
+  htmlAttrs: { lang: 'en', 'data-color-mode-forced': 'dark' }
 })
 useSeoMeta({
   title: 'Reaparr',
@@ -29,7 +31,6 @@ const links = [
       <UNavigationMenu :items="links" />
 
       <template #right>
-        <UColorModeButton />
         <UButton
           to="https://github.com"
           target="_blank"

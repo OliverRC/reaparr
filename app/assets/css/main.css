@@ -11,7 +11,11 @@
      ember  -> error    (the reaping / condemned)
      void   -> neutral  (cool near-blacks, never pure #000) */
 @theme static {
-  --font-sans: 'Public Sans', sans-serif;
+  /* Type roles (@nuxt/fonts loads the families; see nuxt.config.ts).
+     serif -> display + Death's voice · sans -> functional UI · mono -> data. */
+  --font-sans: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'EB Garamond', 'Iowan Old Style', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
   /* primary · eye (spectral blue — Death's eye) */
   --color-eye-50: #ecfbff;
