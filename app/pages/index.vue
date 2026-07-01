@@ -53,7 +53,7 @@ function openDetail(id: number) {
 
     <HealthStrip @synced="onSynced" />
 
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+    <div v-if="!error" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
       <UCard :ui="{ body: 'p-4' }">
         <div class="text-xs text-muted uppercase tracking-wide">Titles</div>
         <div class="text-xl font-bold font-mono tabular-nums">{{ data?.count ?? 0 }}</div>
