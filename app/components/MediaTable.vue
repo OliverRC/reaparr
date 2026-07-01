@@ -69,7 +69,7 @@ const emit = defineEmits<{
               <UBadge color="primary" variant="subtle" size="md" icon="i-lucide-shield">Spared</UBadge>
             </div>
             <div v-else class="flex items-center gap-2">
-              <UBadge :color="scoreColor(row.reapScore)" variant="solid" size="lg" class="tabular-nums font-bold min-w-10 justify-center">
+              <UBadge :color="scoreColor(row.reapScore)" variant="solid" size="lg" class="font-mono tabular-nums font-bold min-w-10 justify-center">
                 {{ row.reapScore }}
               </UBadge>
               <UBadge :color="tierMeta(row.tier).color" variant="subtle" size="sm">{{ tierMeta(row.tier).label }}</UBadge>
@@ -86,14 +86,14 @@ const emit = defineEmits<{
               variant="subtle"
               size="md"
               icon="i-lucide-star"
-              class="tabular-nums font-medium"
+              class="font-mono tabular-nums font-medium"
             >{{ row.rating.toFixed(1) }}</UBadge>
             <span v-else class="text-muted">—</span>
           </td>
-          <td v-if="type === 'series'" class="py-3 px-3 align-top text-right tabular-nums border-t border-default">
+          <td v-if="type === 'series'" class="py-3 px-3 align-top text-right font-mono tabular-nums border-t border-default">
             {{ row.seasonCount ?? '—' }}
           </td>
-          <td class="py-3 px-3 align-top text-right tabular-nums font-medium border-t border-default">
+          <td class="py-3 px-3 align-top text-right font-mono tabular-nums font-medium border-t border-default">
             {{ formatBytes(row.sizeOnDisk) }}
           </td>
           <td class="py-3 px-3 align-top border-t border-default">
@@ -129,7 +129,9 @@ const emit = defineEmits<{
           </td>
         </tr>
         <tr v-if="!rows.length">
-          <td colspan="10" class="py-10 text-center text-muted">No {{ type === 'series' ? 'series' : 'movies' }} found.</td>
+          <td :colspan="type === 'series' ? 10 : 9" class="py-12 text-center">
+            <VoiceLine class="text-lg text-muted">There is nothing here to reap.</VoiceLine>
+          </td>
         </tr>
       </tbody>
     </table>

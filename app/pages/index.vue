@@ -4,7 +4,7 @@ const tab = ref<'series' | 'movie'>('series')
 const sort = ref<'score' | 'size'>('score')
 
 const query = computed(() => ({ type: tab.value, sort: sort.value }))
-const { data, refresh, pending } = await useFetch('/api/dashboard', { query, key: 'dashboard' })
+const { data, refresh, pending, error } = await useFetch('/api/dashboard', { query, key: 'dashboard' })
 
 async function onSpare({ id, title, spared }: { id: number, title: string, spared: boolean }) {
   try {
@@ -43,9 +43,9 @@ function openDetail(id: number) {
 </script>
 
 <template>
-  <UContainer class="py-8 space-y-6">
+  <UContainer class="py-6 space-y-5">
     <div class="space-y-1">
-      <h1 class="text-2xl font-bold">Reclaim dashboard</h1>
+      <VoiceLine as="h1" class="text-3xl text-highlighted">Reclaim dashboard</VoiceLine>
       <p class="text-muted text-sm">
         Priority-ranked deletion candidates. Higher Reap Score = stronger candidate. Size shows what you'd reclaim — it never moves the score.
       </p>
@@ -53,24 +53,24 @@ function openDetail(id: number) {
 
     <HealthStrip @synced="onSynced" />
 
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
       <UCard :ui="{ body: 'p-4' }">
         <div class="text-xs text-muted uppercase tracking-wide">Titles</div>
-        <div class="text-xl font-bold tabular-nums">{{ data?.count ?? 0 }}</div>
+        <div class="text-xl font-bold font-mono tabular-nums">{{ data?.count ?? 0 }}</div>
       </UCard>
       <UCard :ui="{ body: 'p-4' }">
         <div class="text-xs text-muted uppercase tracking-wide">Total size</div>
-        <div class="text-xl font-bold tabular-nums">{{ formatBytes(data?.totalSize ?? 0) }}</div>
+        <div class="text-xl font-bold font-mono tabular-nums">{{ formatBytes(data?.totalSize ?? 0) }}</div>
       </UCard>
       <UCard :ui="{ body: 'p-4' }">
         <div class="text-xs text-muted uppercase tracking-wide">Reclaimable (score ≥ 50)</div>
-        <div class="text-xl font-bold tabular-nums text-error">{{ formatBytes(data?.reclaimable ?? 0) }}</div>
+        <div class="text-xl font-bold font-mono tabular-nums text-error">{{ formatBytes(data?.reclaimable ?? 0) }}</div>
       </UCard>
       <UCard :ui="{ body: 'p-4' }">
         <div class="text-xs text-muted uppercase tracking-wide flex items-center gap-1">
           <UIcon name="i-lucide-shield" class="size-3.5 text-primary" /> Spared
         </div>
-        <div class="text-xl font-bold tabular-nums">
+        <div class="text-xl font-bold font-mono tabular-nums">
           {{ data?.sparedCount ?? 0 }}
           <span class="text-sm font-normal text-muted">· {{ formatBytes(data?.sparedSize ?? 0) }}</span>
         </div>
@@ -96,7 +96,16 @@ function openDetail(id: number) {
         </div>
       </template>
 
-      <div v-if="pending" class="py-10 text-center text-muted">Loading…</div>
+      <div v-if="error" class="py-12 text-center space-y-4">
+        <VoiceLine class="text-xl text-highlighted">The ledger will not open.</VoiceLine>
+        <p class="text-sm text-muted">The dashboard could not be read. This is a failure, not an empty library.</p>
+        <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-rotate-cw" @click="() => refresh()">
+          Try again
+        </UButton>
+      </div>
+      <div v-else-if="pending" class="py-12 text-center">
+        <VoiceLine status class="text-xl text-muted">The ledger is being read.</VoiceLine>
+      </div>
       <MediaTable
         v-else
         :rows="(data?.rows ?? []) as any"
