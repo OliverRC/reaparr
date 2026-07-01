@@ -1,18 +1,85 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
+/* Death's ledger — visual identity, expressed entirely in Nuxt UI / Tailwind
+   tokens. The hues are TRANSLATED from the design/ mockup's inspiration, never
+   its --void/--eye/--ember token layer (see CLAUDE.md). Five named scales feed
+   the Nuxt UI semantic aliases in app/app.config.ts:
+     eye    -> primary  (the spectral "Death's eye" cyan; also the Spared state)
+     sage   -> success  (alive / watched)
+     candle -> warning  (aging / fading)
+     ember  -> error    (the reaping / condemned)
+     void   -> neutral  (cool near-blacks, never pure #000) */
 @theme static {
   --font-sans: 'Public Sans', sans-serif;
 
-  --color-green-50: #EFFDF5;
-  --color-green-100: #D9FBE8;
-  --color-green-200: #B3F5D1;
-  --color-green-300: #75EDAE;
-  --color-green-400: #00DC82;
-  --color-green-500: #00C16A;
-  --color-green-600: #00A155;
-  --color-green-700: #007F45;
-  --color-green-800: #016538;
-  --color-green-900: #0A5331;
-  --color-green-950: #052E16;
+  /* primary · eye (spectral blue — Death's eye) */
+  --color-eye-50: #ecfbff;
+  --color-eye-100: #cef3ff;
+  --color-eye-200: #a6e6ff;
+  --color-eye-300: #7ad7ff;
+  --color-eye-400: #5ad1ff;
+  --color-eye-500: #2faee0;
+  --color-eye-600: #2491c0;
+  --color-eye-700: #1f7fa6;
+  --color-eye-800: #1a6480;
+  --color-eye-900: #164e64;
+  --color-eye-950: #0c2f3f;
+
+  /* success · sage (alive / watched) */
+  --color-sage-50: #eef7f1;
+  --color-sage-100: #d6ecdd;
+  --color-sage-200: #aedcbd;
+  --color-sage-300: #7fcf9b;
+  --color-sage-400: #6bbd88;
+  --color-sage-500: #5fae7a;
+  --color-sage-600: #4a8c61;
+  --color-sage-700: #3c6f4e;
+  --color-sage-800: #325a41;
+  --color-sage-900: #2a4a37;
+  --color-sage-950: #14281d;
+
+  /* warning · candle (aging / fading) */
+  --color-candle-50: #fdf8ec;
+  --color-candle-100: #f8ecc9;
+  --color-candle-200: #f0d68f;
+  --color-candle-300: #e6bd5a;
+  --color-candle-400: #dcae45;
+  --color-candle-500: #d6a53a;
+  --color-candle-600: #b0842a;
+  --color-candle-700: #8a6620;
+  --color-candle-800: #6f521c;
+  --color-candle-900: #5c441a;
+  --color-candle-950: #34260d;
+
+  /* error · ember (the reaping / condemned) */
+  --color-ember-50: #fdf3f1;
+  --color-ember-100: #fbe1db;
+  --color-ember-200: #f6c3b7;
+  --color-ember-300: #f6a48f;
+  --color-ember-400: #ef7358;
+  --color-ember-500: #e0563f;
+  --color-ember-600: #c23f2b;
+  --color-ember-700: #8f2c1d;
+  --color-ember-800: #74251a;
+  --color-ember-900: #5f2118;
+  --color-ember-950: #340f0a;
+
+  /* neutral · void → bone (cool near-blacks, never pure #000) */
+  --color-void-50: #eef1f6;
+  --color-void-100: #d4dae3;
+  --color-void-200: #aab3c0;
+  --color-void-300: #7c8593;
+  --color-void-400: #565e6b;
+  --color-void-500: #3a414c;
+  --color-void-600: #2a303a;
+  --color-void-700: #1e232b;
+  --color-void-800: #14171d;
+  --color-void-900: #0a0c0f;
+  --color-void-950: #060709;
+}
+
+/* Carved density: tighter than Nuxt UI's 0.25rem default (R4). */
+:root {
+  --ui-radius: 0.125rem;
 }
