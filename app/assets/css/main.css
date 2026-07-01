@@ -88,6 +88,12 @@
   --ui-radius: 0.125rem;
 }
 
+/* Brighten borders one shade above the dark default (neutral-800 -> -700) so
+   table rows, cards, and dividers read a little more crisply on the void canvas. */
+.dark {
+  --ui-border: var(--ui-color-neutral-700);
+}
+
 /* Death's voice — the one reusable treatment (R8). Death speaks in a flat
    monotone rendered in small caps with no quotation marks: serif, uppercase,
    letter-spaced, unhurried. Reserved for headlines and empty/loading states;
