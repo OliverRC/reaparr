@@ -1,0 +1,37 @@
+{
+  "name": "reaparr",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "preview": "nuxt preview",
+    "start": "node .output/server/index.mjs",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "typecheck": "nuxt typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "mock-server": "node test/mock-server/server.mjs"
+  },
+  "dependencies": {
+    "@iconify-json/lucide": "^1.2.114",
+    "@iconify-json/simple-icons": "^1.2.87",
+    "@nuxt/ui": "^4.9.0",
+    "better-sqlite3": "^12.2.0",
+    "drizzle-orm": "^0.44.2",
+    "nuxt": "^4.4.8",
+    "tailwindcss": "^4.3.1"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.16.0",
+    "@types/better-sqlite3": "^7.6.11",
+    "drizzle-kit": "^0.31.1",
+    "eslint": "^10.6.0",
+    "node-gyp": "^12.4.0",
+    "typescript": "^6.0.3",
+    "vitest": "^3.2.4",
+    "vue-tsc": "^3.3.5"
+  }
+}
