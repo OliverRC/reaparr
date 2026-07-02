@@ -65,7 +65,7 @@ function loadScoringConfig(db: Db): ScoringConfig {
 // --- Titles -------------------------------------------------------------------
 
 function persistTitles(db: Db, bundle: SyncBundle, now: number): { discrepancies: number, removed: number[] } {
-  // NOTE: the `values` objects below deliberately OMIT `spared`/`sparedAt`, the reaping lifecycle
+  // NOTE: the `values` objects below deliberately OMIT `immortalised`/`immortalisedAt`, the reaping lifecycle
   // columns (`state`/`episode`/`scheduledAt`/`dueAt`/`sendReminder`/`removedAt`) and the
   // `tautulliKey` (set later). Leaving admin-set / lifecycle columns out of the update-by-
   // (source, source_id) upsert is what preserves them across every re-sync. Do not add them here.

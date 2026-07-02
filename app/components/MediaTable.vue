@@ -19,7 +19,7 @@ interface Row {
   tier: string | null
   reasons: string[]
   rating: number | null
-  spared: boolean
+  immortalised: boolean
 }
 
 const props = defineProps<{
@@ -30,7 +30,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:sort', v: 'score' | 'size'): void
   (e: 'select', id: number): void
-  (e: 'spare', payload: { id: number, title: string, spared: boolean }): void
+  (e: 'immortalise', payload: { id: number, title: string, immortalised: boolean }): void
 }>()
 
 // Columns carry only structure + alignment; the rich cell bodies live in the
@@ -61,10 +61,10 @@ const columns = computed<TableColumn<Row>[]>(() => {
   return cols
 })
 
-// Spared rows read as dimmed — resolved per-row by UTable via meta.class.tr.
+// Immortalised rows read as dimmed — resolved per-row by UTable via meta.class.tr.
 const tableMeta = {
   class: {
-    tr: (row: TableRow<Row>) => (row.original.spared ? 'opacity-60' : '')
+    tr: (row: TableRow<Row>) => (row.original.immortalised ? 'opacity-60' : '')
   }
 }
 
@@ -112,14 +112,14 @@ watch(filter, (v) => {
       </button>
     </template>
     <template #reapScore-cell="{ row }">
-      <div v-if="row.original.spared">
+      <div v-if="row.original.immortalised">
         <UBadge
           color="primary"
           variant="subtle"
           size="md"
           icon="i-lucide-shield"
         >
-          Spared
+          Immortalised
         </UBadge>
       </div>
       <div
@@ -242,7 +242,7 @@ watch(filter, (v) => {
 
     <template #reasons-cell="{ row }">
       <div
-        v-if="!row.original.spared"
+        v-if="!row.original.immortalised"
         class="flex flex-wrap gap-1 max-w-xs"
       >
         <UBadge
@@ -265,14 +265,14 @@ watch(filter, (v) => {
       <span class="sr-only">Actions</span>
     </template>
     <template #actions-cell="{ row }">
-      <UTooltip :text="row.original.spared ? 'Return to the reap' : 'Spare (keep forever)'">
+      <UTooltip :text="row.original.immortalised ? 'Return to the reap' : 'Immortalise (keep forever)'">
         <UButton
-          :icon="row.original.spared ? 'i-lucide-shield-off' : 'i-lucide-shield'"
-          :color="row.original.spared ? 'neutral' : 'primary'"
+          :icon="row.original.immortalised ? 'i-lucide-shield-off' : 'i-lucide-shield'"
+          :color="row.original.immortalised ? 'neutral' : 'primary'"
           variant="ghost"
           size="sm"
-          :aria-label="row.original.spared ? 'Return to the reap' : 'Spare'"
-          @click="emit('spare', { id: row.original.id, title: row.original.title, spared: !row.original.spared })"
+          :aria-label="row.original.immortalised ? 'Return to the reap' : 'Immortalise'"
+          @click="emit('immortalise', { id: row.original.id, title: row.original.title, immortalised: !row.original.immortalised })"
         />
       </UTooltip>
     </template>

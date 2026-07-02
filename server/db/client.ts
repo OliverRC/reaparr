@@ -62,8 +62,8 @@ CREATE TABLE IF NOT EXISTS title (
   rating REAL,
   rating_imdb REAL,
   rating_rt INTEGER,
-  spared INTEGER NOT NULL DEFAULT 0,
-  spared_at TEXT,
+  immortalised INTEGER NOT NULL DEFAULT 0,
+  immortalised_at TEXT,
   state TEXT NOT NULL DEFAULT 'eligible',
   episode INTEGER NOT NULL DEFAULT 1,
   scheduled_at TEXT,
@@ -194,6 +194,23 @@ CREATE TABLE IF NOT EXISTS reaping_notification (
 CREATE INDEX IF NOT EXISTS idx_notification_title ON reaping_notification(title_id);
 `
 
+// One-time column rename (spared → immortalised): DBs created before the term was
+// renamed still carry the old columns. Rename in place so the flag and timestamp
+// survive, and run BEFORE ensureColumns — otherwise it would add fresh empty
+// immortalised columns and orphan the data. Safe to run every startup (no-op once
+// renamed, or on a fresh DB that already bootstrapped the new names).
+function renameImmortalisedColumns(sqlite: Database.Database): void {
+  const cols = new Set(
+    (sqlite.prepare('PRAGMA table_info(title)').all() as { name: string }[]).map(c => c.name)
+  )
+  if (cols.has('spared') && !cols.has('immortalised')) {
+    sqlite.exec('ALTER TABLE title RENAME COLUMN spared TO immortalised')
+  }
+  if (cols.has('spared_at') && !cols.has('immortalised_at')) {
+    sqlite.exec('ALTER TABLE title RENAME COLUMN spared_at TO immortalised_at')
+  }
+}
+
 // Add columns introduced after a DB was first created (bootstrap's IF NOT EXISTS
 // only creates whole tables). Safe to run every startup.
 function ensureColumns(sqlite: Database.Database): void {
@@ -201,8 +218,8 @@ function ensureColumns(sqlite: Database.Database): void {
     title: [
       ['title_slug', 'TEXT'],
       ['tautulli_key', 'TEXT'],
-      ['spared', 'INTEGER NOT NULL DEFAULT 0'],
-      ['spared_at', 'TEXT'],
+      ['immortalised', 'INTEGER NOT NULL DEFAULT 0'],
+      ['immortalised_at', 'TEXT'],
       ['rating', 'REAL'],
       ['rating_imdb', 'REAL'],
       ['rating_rt', 'INTEGER'],
@@ -266,6 +283,7 @@ export function getSqlite(): Database.Database {
   sqlite.pragma('journal_mode = WAL')
   sqlite.pragma('foreign_keys = ON')
   sqlite.exec(BOOTSTRAP_SQL)
+  renameImmortalisedColumns(sqlite)
   ensureColumns(sqlite)
   // person.match_key is the reconcile upsert key (ADR-0007) — index after the column exists on both
   // fresh and migrated DBs, then backfill legacy rows so their flags/actor refs survive the upgrade.

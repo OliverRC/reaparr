@@ -31,12 +31,12 @@ function setPage(page: number) {
   pagination.value = { ...pagination.value, pageIndex: page - 1 }
 }
 
-async function onSpare({ id, title, spared }: { id: number, title: string, spared: boolean }) {
+async function onImmortalise({ id, title, immortalised }: { id: number, title: string, immortalised: boolean }) {
   try {
-    await $fetch(`/api/title/${id}/spare`, { method: 'POST', body: { spared } })
+    await $fetch(`/api/title/${id}/immortalise`, { method: 'POST', body: { immortalised } })
     toast.add({
-      title: spared ? `Spared “${title}”` : `Returned “${title}” to the reap`,
-      description: spared ? 'Kept forever — pinned to the bottom, not scored.' : undefined,
+      title: immortalised ? `Immortalised “${title}”` : `Returned “${title}” to the reap`,
+      description: immortalised ? 'Kept forever — pinned to the bottom, not scored.' : undefined,
       color: 'success',
       icon: 'i-lucide-shield'
     })
@@ -110,11 +110,11 @@ function openDetail(id: number) {
           <UIcon
             name="i-lucide-shield"
             class="size-3.5 text-primary"
-          /> Spared
+          /> Immortalised
         </div>
         <div class="text-xl font-bold font-mono tabular-nums">
-          {{ data?.sparedCount ?? 0 }}
-          <span class="text-sm font-normal text-muted">· {{ formatBytes(data?.sparedSize ?? 0) }}</span>
+          {{ data?.immortalisedCount ?? 0 }}
+          <span class="text-sm font-normal text-muted">· {{ formatBytes(data?.immortalisedSize ?? 0) }}</span>
         </div>
       </UCard>
     </div>
@@ -224,12 +224,12 @@ function openDetail(id: number) {
         :sort="sort"
         @update:sort="setSort"
         @select="openDetail"
-        @spare="onSpare"
+        @immortalise="onImmortalise"
       />
       <template #footer>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <p class="text-xs text-muted">
-            Click any row for its watch history and links; use the shield to Spare a keeper.
+            Click any row for its watch history and links; use the shield to Immortalise a keeper.
           </p>
           <UPagination
             v-if="!error && !pending && filteredCount > pagination.pageSize"
@@ -246,7 +246,7 @@ function openDetail(id: number) {
     <TitleDetail
       :id="selectedId"
       v-model:open="detailOpen"
-      @spared-changed="refresh"
+      @immortalised-changed="refresh"
     />
   </UContainer>
 </template>

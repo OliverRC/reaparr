@@ -71,7 +71,7 @@ moves the Reap Score — so resolution is kept minimal.
 ## Adjacent terms (pre-existing, kept distinct)
 
 - **Reap Score / tier** — the 0–100 staleness score and its tier (fresh/stale/very_stale/dormant).
-- **Spared** — the operator's keep-forever exclusion (`spared`/`spared_at`). A **separate** function
-  from reprieve: granting an appeal never sets `spared`.
+- **Immortalised** — the operator's keep-forever exclusion (`immortalised`/`immortalised_at`). A
+  **separate** function from reprieve: granting an appeal never sets `immortalised`.
 - **Connected member** — a member linked to a title by a Seerr request or a Tautulli watch. Not the
   audience gate in v1 (all members are), but useful display context.

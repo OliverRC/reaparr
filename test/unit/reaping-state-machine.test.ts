@@ -19,7 +19,7 @@ async function freshTitle() {
   const { db, schema, eq } = await ctx()
   const t = db.select().from(schema.title).all()[0]!
   db.update(schema.title)
-    .set({ state: 'eligible', episode: 1, removedAt: null, scheduledAt: null, dueAt: null, sendReminder: 0, spared: 0 })
+    .set({ state: 'eligible', episode: 1, removedAt: null, scheduledAt: null, dueAt: null, sendReminder: 0, immortalised: 0 })
     .where(eq(schema.title.id, t.id)).run()
   db.delete(schema.titleTransition).where(eq(schema.titleTransition.titleId, t.id)).run()
   return t.id
@@ -111,15 +111,15 @@ describe('applyTransition', () => {
     expect((await stateOf(id)).episode).toBe(latest.episode)
   })
 
-  it('granting an appeal does not touch the separate spared flag', async () => {
+  it('granting an appeal does not touch the separate immortalised flag', async () => {
     const { applyTransition } = await sm()
     const { db, schema, eq } = await ctx()
     const id = await freshTitle()
     const pid = await personId()
-    db.update(schema.title).set({ spared: 1 }).where(eq(schema.title.id, id)).run()
+    db.update(schema.title).set({ immortalised: 1 }).where(eq(schema.title.id, id)).run()
     applyTransition(db, id, { to: 'scheduled', reason: 'admin_scheduled', actor: { personId: pid }, now: NOW })
     applyTransition(db, id, { to: 'appealed', reason: 'member_appealed', actor: { personId: pid }, now: NOW })
     applyTransition(db, id, { to: 'eligible', reason: 'appeal_granted', actor: { personId: pid }, now: NOW })
-    expect((await stateOf(id)).spared).toBe(1) // untouched
+    expect((await stateOf(id)).immortalised).toBe(1) // untouched
   })
 })

@@ -23,7 +23,7 @@ Guidance for working in this repository.
   - Keep it to voice moments (headlines, empty states, and similar flavor copy) — do not render normal body text, form labels, or functional UI in Death's voice, where readability and clarity come first.
 - **The voice is a frontend-only aesthetic.** It applies to rendered copy in the presentation layer, and nowhere else. The database, schemas, migrations, API payloads, function and variable names, and any data objects passed around must stay **neutral and functional** — describe what the code does, not how Death would say it. Apply the voice *over* neutral data at render time; never bake it into identifiers or stored/transmitted values.
   - Backend-generated strings that surface as data (e.g. score reasons, tier and status labels) stay plain and descriptive. If they need Death's voice, add it in the frontend.
-  - The product's own domain terms (e.g. `reap`, `reapScore`, `spared`) are functional vocabulary, not the voice — they may appear anywhere.
+  - The product's own domain terms (e.g. `reap`, `reapScore`, `immortalised`) are functional vocabulary, not the voice — they may appear anywhere.
 
 ## Agent skills
 

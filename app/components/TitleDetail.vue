@@ -10,8 +10,8 @@ interface TitleDetail {
   mediaType: string
   title: string
   year: number | null
-  spared: boolean
-  sparedAt: string | null
+  immortalised: boolean
+  immortalisedAt: string | null
   reaping: {
     state: string
     episode: number
@@ -53,21 +53,21 @@ interface TitleDetail {
 const props = defineProps<{ id: number | null, open: boolean }>()
 const emit = defineEmits<{
   (e: 'update:open', v: boolean): void
-  (e: 'spared-changed'): void
+  (e: 'immortalised-changed'): void
 }>()
 
 const toast = useToast()
 const data = ref<TitleDetail | null>(null)
 const pending = ref(false)
-const showScore = ref(false) // when spared, the breakdown is collapsed by default
-const sparing = ref(false)
+const showScore = ref(false) // when immortalised, the breakdown is collapsed by default
+const immortalising = ref(false)
 
 async function load(id: number) {
   pending.value = true
   data.value = null
   try {
     data.value = await $fetch<TitleDetail>(`/api/title/${id}`)
-    showScore.value = !data.value?.spared
+    showScore.value = !data.value?.immortalised
   } finally {
     pending.value = false
   }
@@ -78,25 +78,25 @@ watch(() => [props.open, props.id] as const, ([open, id]) => {
   load(id)
 }, { immediate: true })
 
-async function toggleSpare() {
+async function toggleImmortalise() {
   if (!data.value) return
-  sparing.value = true
-  const next = !data.value.spared
+  immortalising.value = true
+  const next = !data.value.immortalised
   const name = data.value.title
   try {
-    await $fetch(`/api/title/${data.value.id}/spare`, { method: 'POST', body: { spared: next } })
+    await $fetch(`/api/title/${data.value.id}/immortalise`, { method: 'POST', body: { immortalised: next } })
     toast.add({
-      title: next ? `Spared “${name}”` : `Returned “${name}” to the reap`,
+      title: next ? `Immortalised “${name}”` : `Returned “${name}” to the reap`,
       description: next ? 'Kept forever — pinned to the bottom, not scored.' : undefined,
       color: 'success',
       icon: 'i-lucide-shield'
     })
     await load(data.value.id)
-    emit('spared-changed')
+    emit('immortalised-changed')
   } catch (e) {
     toast.add({ title: 'Action failed', description: (e as Error).message, color: 'error' })
   } finally {
-    sparing.value = false
+    immortalising.value = false
   }
 }
 
@@ -117,7 +117,7 @@ async function reapingAct(path: string, body: Record<string, unknown>, ok: strin
     await $fetch(`/api/title/${data.value.id}/${path}`, { method: 'POST', body })
     toast.add({ title: ok, color: 'success', icon: 'i-lucide-hourglass' })
     await load(data.value.id)
-    emit('spared-changed')
+    emit('immortalised-changed')
   } catch (e) {
     toast.add({ title: 'Action failed', description: (e as Error).message, color: 'error' })
   } finally {
@@ -252,13 +252,13 @@ const ratingItems = computed(() => {
           </div>
           <div class="text-right">
             <UBadge
-              v-if="data.spared"
+              v-if="data.immortalised"
               color="primary"
               variant="subtle"
               size="lg"
               icon="i-lucide-shield"
             >
-              Spared
+              Immortalised
             </UBadge>
             <template v-else>
               <UBadge
@@ -278,7 +278,7 @@ const ratingItems = computed(() => {
 
         <!-- Reaping lifecycle -->
         <div
-          v-if="!data.spared"
+          v-if="!data.immortalised"
           class="rounded-lg border border-default p-3 space-y-3"
         >
           <div class="flex items-center justify-between gap-2">
@@ -391,14 +391,14 @@ const ratingItems = computed(() => {
           </div>
         </div>
 
-        <!-- Spared banner -->
+        <!-- Immortalised banner -->
         <UAlert
-          v-if="data.spared"
+          v-if="data.immortalised"
           color="primary"
           variant="subtle"
           icon="i-lucide-shield"
           title="Kept forever"
-          description="This title is spared from reaping — it stays at the bottom of the list and isn't scored."
+          description="This title is immortalised — it stays at the bottom of the list, out of the reaping, and isn't scored."
         >
           <template #actions>
             <UButton
@@ -406,8 +406,8 @@ const ratingItems = computed(() => {
               variant="solid"
               size="sm"
               icon="i-lucide-shield-off"
-              :loading="sparing"
-              @click="toggleSpare"
+              :loading="immortalising"
+              @click="toggleImmortalise"
             >
               Return to the reap
             </UButton>
@@ -498,15 +498,15 @@ const ratingItems = computed(() => {
           </UTooltip>
 
           <UButton
-            v-if="!data.spared"
+            v-if="!data.immortalised"
             icon="i-lucide-shield"
             color="primary"
             variant="outline"
             size="sm"
-            :loading="sparing"
-            @click="toggleSpare"
+            :loading="immortalising"
+            @click="toggleImmortalise"
           >
-            Spare (keep forever)
+            Immortalise (keep forever)
           </UButton>
         </div>
 
@@ -574,9 +574,9 @@ const ratingItems = computed(() => {
           </div>
         </div>
 
-        <!-- Score breakdown — collapsed by default for spared titles -->
+        <!-- Score breakdown — collapsed by default for immortalised titles -->
         <div
-          v-if="data.spared && !showScore"
+          v-if="data.immortalised && !showScore"
           class="text-sm"
         >
           <UButton
@@ -591,7 +591,7 @@ const ratingItems = computed(() => {
           </UButton>
         </div>
         <div
-          v-if="data.score && (!data.spared || showScore)"
+          v-if="data.score && (!data.immortalised || showScore)"
           class="rounded-lg border border-default p-4 space-y-4"
         >
           <div class="flex items-center justify-between">

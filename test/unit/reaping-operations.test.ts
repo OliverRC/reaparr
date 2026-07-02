@@ -24,7 +24,7 @@ async function freshTitle() {
   const { db, schema, eq } = await ctx()
   const t = db.select().from(schema.title).all()[0]!
   db.update(schema.title)
-    .set({ state: 'eligible', episode: 1, scheduledAt: null, dueAt: null, sendReminder: 0, removedAt: null, spared: 0 })
+    .set({ state: 'eligible', episode: 1, scheduledAt: null, dueAt: null, sendReminder: 0, removedAt: null, immortalised: 0 })
     .where(eq(schema.title.id, t.id)).run()
   db.delete(schema.titleTransition).where(eq(schema.titleTransition.titleId, t.id)).run()
   db.delete(schema.reapingNotification).where(eq(schema.reapingNotification.titleId, t.id)).run()
@@ -83,18 +83,18 @@ describe('reaping operations', () => {
     expect((await row(id)).sendReminder).toBe(1)
   })
 
-  it('grants an appeal → reprieve (eligible), notifies reprieved, and never touches spared', async () => {
+  it('grants an appeal → reprieve (eligible), notifies reprieved, and never touches immortalised', async () => {
     const { scheduleTitle, raiseAppeal, resolveAppeal } = await ops()
     const { db, schema, eq } = await ctx()
     const id = await freshTitle()
-    db.update(schema.title).set({ spared: 1 }).where(eq(schema.title.id, id)).run()
+    db.update(schema.title).set({ immortalised: 1 }).where(eq(schema.title.id, id)).run()
     await scheduleTitle(db, id, { actorPersonId: null }, NOW)
     raiseAppeal(db, id, memberId, NOW)
     expect((await row(id)).state).toBe('appealed')
     await resolveAppeal(db, id, 'grant', null, NOW)
     const r = await row(id)
     expect(r.state).toBe('eligible')
-    expect(r.spared).toBe(1) // separate function, untouched
+    expect(r.immortalised).toBe(1) // separate function, untouched
     expect(await events(id)).toContain('reprieved')
   })
 

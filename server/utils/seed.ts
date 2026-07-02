@@ -55,11 +55,11 @@ export async function seedDemo(force = false): Promise<void> {
 
   const counts = await persistBundle(buildDemoBundle(Date.now()))
 
-  // On the very first seed only, pre-Spare one clearly-keep title so the feature is
-  // visible on first run. Skipped on demo re-syncs so a user's own spare choices persist.
+  // On the very first seed only, pre-immortalise one clearly-keep title so the feature
+  // is visible on first run. Skipped on demo re-syncs so a user's own choices persist.
   if (wasEmpty) {
     db.update(schema.title)
-      .set({ spared: 1, sparedAt: new Date().toISOString() })
+      .set({ immortalised: 1, immortalisedAt: new Date().toISOString() })
       .where(eq(schema.title.title, 'A Comedy'))
       .run()
 

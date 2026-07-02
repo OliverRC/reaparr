@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm'
 import { getDb, schema } from '../../../db/client'
 
-// Spare ("keep forever") / return-to-the-reap a title. Spared titles are pinned to
-// the bottom of the dashboard with their score hidden, and excluded from the
+// Immortalise ("keep forever") / return-to-the-reap a title. Immortalised titles are
+// pinned to the bottom of the dashboard with their score hidden, and excluded from the
 // reclaimable figure. The flag survives re-syncs (see persistTitles).
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
@@ -10,8 +10,8 @@ export default defineEventHandler(async (event) => {
     setResponseStatus(event, 400)
     return { ok: false, message: 'Invalid id' }
   }
-  const body = await readBody<{ spared: boolean }>(event)
-  const spared = !!body?.spared
+  const body = await readBody<{ immortalised: boolean }>(event)
+  const immortalised = !!body?.immortalised
 
   const db = getDb()
   const t = db.select({ id: schema.title.id }).from(schema.title).where(eq(schema.title.id, id)).get()
@@ -21,9 +21,9 @@ export default defineEventHandler(async (event) => {
   }
 
   db.update(schema.title)
-    .set({ spared: spared ? 1 : 0, sparedAt: spared ? new Date().toISOString() : null })
+    .set({ immortalised: immortalised ? 1 : 0, immortalisedAt: immortalised ? new Date().toISOString() : null })
     .where(eq(schema.title.id, id))
     .run()
 
-  return { ok: true, spared }
+  return { ok: true, immortalised }
 })

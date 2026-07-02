@@ -33,10 +33,10 @@ describe('demo seed — reaping workflow', () => {
     expect(trans.some(t => t.reason === 'member_appealed' && t.actorPersonId != null)).toBe(true)
   })
 
-  it('still pre-spares A Comedy and does not disturb scores', async () => {
+  it('still pre-immortalises A Comedy and does not disturb scores', async () => {
     const { db, schema, eq } = await ctx()
     const comedy = db.select().from(schema.title).where(eq(schema.title.title, 'A Comedy')).get()!
-    expect(comedy.spared).toBe(1)
+    expect(comedy.immortalised).toBe(1)
     expect(comedy.state).toBe('eligible')
   })
 })

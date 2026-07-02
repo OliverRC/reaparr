@@ -44,9 +44,9 @@ export const title = sqliteTable('title', {
   rating: real('rating'),
   ratingImdb: real('rating_imdb'),
   ratingRt: integer('rating_rt'),
-  // Spared ("keep forever"): excluded from reaping, pinned to the bottom, score hidden.
-  spared: integer('spared').notNull().default(0),
-  sparedAt: text('spared_at'),
+  // Immortalised ("keep forever"): excluded from reaping, pinned to the bottom, score hidden.
+  immortalised: integer('immortalised').notNull().default(0),
+  immortalisedAt: text('immortalised_at'),
   // Reaping Workflow lifecycle (functional; voice labels are frontend-only). See CONTEXT.md /
   // docs/adr/0001. `state` is denormalized = the latest title_transition.to_state. `episode`
   // increments on resurrection. `removedAt` tombstones the row (never deleted) so history survives.

@@ -55,8 +55,8 @@ export default defineEventHandler((event) => {
     mediaType: t.mediaType,
     title: t.title,
     year: t.year,
-    spared: t.spared === 1,
-    sparedAt: t.sparedAt,
+    immortalised: t.immortalised === 1,
+    immortalisedAt: t.immortalisedAt,
     // Reaping lifecycle (functional; the frontend maps these to Death's voice).
     reaping: {
       state: t.state,

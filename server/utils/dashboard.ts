@@ -24,7 +24,7 @@ export interface DashboardRow {
   abandonment: number
   requestMiss: number
   completion: number | null
-  spared: boolean
+  immortalised: boolean
   state: string
   dueAt: string | null
 }
@@ -95,15 +95,15 @@ export function getDashboard(type: DashboardType, sort: DashboardSort = 'score')
       abandonment: s?.abandonment ?? 0,
       requestMiss: s?.requestMiss ?? 0,
       completion: s?.completion ?? null,
-      spared: t.spared === 1,
+      immortalised: t.immortalised === 1,
       state: t.state,
       dueAt: t.dueAt
     }
   })
 
   rows.sort((a, b) => {
-    // Spared ("keep forever") titles always sink below reapable ones, either sort.
-    if (a.spared !== b.spared) return Number(a.spared) - Number(b.spared)
+    // Immortalised ("keep forever") titles always sink below reapable ones, either sort.
+    if (a.immortalised !== b.immortalised) return Number(a.immortalised) - Number(b.immortalised)
     if (sort === 'size') return b.sizeOnDisk - a.sizeOnDisk || b.reapScore - a.reapScore
     return b.reapScore - a.reapScore || b.sizeOnDisk - a.sizeOnDisk
   })
