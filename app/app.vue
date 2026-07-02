@@ -31,6 +31,7 @@ const links = [
       <UNavigationMenu :items="links" />
 
       <template #right>
+        <SystemStatus />
         <UButton
           to="https://github.com"
           target="_blank"

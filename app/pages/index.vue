@@ -26,10 +26,6 @@ const tabItems = [
   { label: 'Movies', value: 'movie', icon: 'i-lucide-film' }
 ]
 
-async function onSynced() {
-  await refresh()
-}
-
 function setSort(v: 'score' | 'size') {
   sort.value = v
 }
@@ -47,11 +43,9 @@ function openDetail(id: number) {
     <div class="space-y-1">
       <VoiceLine as="h1" class="text-3xl text-highlighted">Books of Life</VoiceLine>
       <p class="text-muted text-sm">
-        Death walks the shelves and considers each book in turn, weighing not how fat it is but how ready. The higher the Reap Score, the more surely its time has come. Size is merely what the shelf gives back once the reaping is done; it sways his hand not at all.
+        Death walks the shelves and considers each book in turn, weighing how ready it is for the reaping. The higher the Reap Score, the more surely its time has come.
       </p>
     </div>
-
-    <HealthStrip @synced="onSynced" />
 
     <div v-if="!error" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
       <UCard :ui="{ body: 'p-4' }">
