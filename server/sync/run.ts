@@ -10,6 +10,7 @@ import {
   type NormalizedMovie, type NormalizedRequest, type NormalizedSeries, type NormalizedSourceUser
 } from '../sources'
 import { persistBundle, type SyncBundle } from './persist'
+import { runReapingTick } from '../reaping/tick'
 
 export interface SyncResult {
   runId: number
@@ -121,6 +122,8 @@ async function doRun(now: number): Promise<SyncResult> {
   let status: SyncResult['status'] = 'ok'
   try {
     counts = { ...fetched, ...(await persistBundle(bundle, now)) }
+    // Advance the reaping clock (auto-reprieve on watch, due flip, opt-in reminder).
+    counts = { ...counts, reaping: await runReapingTick(getDb(), now) }
   } catch (err) {
     errors.persist = (err as Error).message
     status = 'error'

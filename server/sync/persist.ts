@@ -36,6 +36,8 @@ export interface PersistCounts {
   watchEvents: number
   scored: number
   needsReview: number
+  // §7 nudge: admin marked a title removed but it's still present in the *arr this run.
+  discrepancies: number
 }
 
 type Db = ReturnType<typeof getDb>
@@ -58,7 +60,7 @@ function loadScoringConfig(db: Db): ScoringConfig {
 
 // --- Titles -------------------------------------------------------------------
 
-function persistTitles(db: Db, bundle: SyncBundle): void {
+function persistTitles(db: Db, bundle: SyncBundle): number {
   // NOTE: the `values` objects below deliberately OMIT `spared`/`sparedAt`, the reaping lifecycle
   // columns (`state`/`episode`/`scheduledAt`/`dueAt`/`sendReminder`/`removedAt`) and the
   // `tautulliKey` (set later). Leaving admin-set / lifecycle columns out of the update-by-
@@ -122,6 +124,7 @@ function persistTitles(db: Db, bundle: SyncBundle): void {
   }
 
   reconcileRemovals(db, keep, sourcesOk)
+  return countDiscrepancies(db, keep)
 }
 
 // Upsert one title, resurrecting a tombstone when a returned title reappears (docs/adr/0002).
@@ -142,10 +145,16 @@ function upsertTitle(
   if (bySourceId) {
     db.update(schema.title).set(values).where(eq(schema.title.id, bySourceId.id)).run()
     if (bySourceId.state === 'removed') {
-      applyTransition(db, bySourceId.id, {
-        to: 'eligible', reason: 'resurrected', actor: { system: 'sync' },
-        metadata: { resurrectedSourceId: sourceId }
-      })
+      // A tombstone still present under the SAME *arr id. If the admin optimistically marked it
+      // removed but it never actually left the *arr, this is a discrepancy (§7) — do NOT resurrect;
+      // leave it removed so the sync can nudge ("you meant to deal with this"). A sync-confirmed
+      // removal that genuinely returned under the same id resurrects as a new episode.
+      if (latestReason(db, bySourceId.id) !== 'admin_marked_removed') {
+        applyTransition(db, bySourceId.id, {
+          to: 'eligible', reason: 'resurrected', actor: { system: 'sync' },
+          metadata: { resurrectedSourceId: sourceId }
+        })
+      }
     }
     return bySourceId.id
   }
@@ -164,6 +173,27 @@ function upsertTitle(
 
   const r = db.insert(schema.title).values(values).run()
   return Number(r.lastInsertRowid)
+}
+
+// Reason of the most recent transition for a title (null if none).
+function latestReason(db: Db, titleId: number): string | null {
+  const row = db.select({ reason: schema.titleTransition.reason }).from(schema.titleTransition)
+    .where(eq(schema.titleTransition.titleId, titleId))
+    .orderBy(sql`${schema.titleTransition.id} desc`).get()
+  return row?.reason ?? null
+}
+
+// Discrepancy (§7): a title the admin marked removed that is STILL present in an authoritative pull.
+// The admin's optimistic mark hasn't been backed by an actual *arr deletion — surface a nudge count.
+function countDiscrepancies(db: Db, keep: Set<string>): number {
+  const removed = db.select({ id: schema.title.id, source: schema.title.source, sourceId: schema.title.sourceId })
+    .from(schema.title).where(eq(schema.title.state, 'removed')).all()
+  let n = 0
+  for (const t of removed) {
+    if (!keep.has(`${t.source}:${t.sourceId}`)) continue
+    if (latestReason(db, t.id) === 'admin_marked_removed') n++
+  }
+  return n
 }
 
 function findTombstone(
@@ -494,7 +524,7 @@ export async function persistBundle(bundle: SyncBundle, now: number = Date.now()
   const db = getDb()
   const config = loadScoringConfig(db)
 
-  persistTitles(db, bundle)
+  const discrepancies = persistTitles(db, bundle)
   const peopleCount = persistPeople(db, bundle)
 
   // Build the title index AFTER titles are written.
@@ -517,7 +547,8 @@ export async function persistBundle(bundle: SyncBundle, now: number = Date.now()
     requests: reqCount,
     watchEvents: watchCount,
     scored,
-    needsReview
+    needsReview,
+    discrepancies
   }
 }
 
