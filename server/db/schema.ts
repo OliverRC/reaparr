@@ -62,6 +62,40 @@ export const title = sqliteTable('title', {
   index('idx_title_tvdb').on(t.tvdbId)
 ])
 
+// Append-only ledger of reaping state changes (one row per transition). Explains how a title
+// reached its current state; never updated or deleted. See docs/adr/0003. Separate from
+// reaping_notification (what we sent). Exactly one of actorPersonId / actorSystem is populated.
+export const titleTransition = sqliteTable('title_transition', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  titleId: integer('title_id').notNull().references(() => title.id, { onDelete: 'cascade' }),
+  episode: integer('episode').notNull(),
+  fromState: text('from_state').notNull(),
+  toState: text('to_state').notNull(),
+  reason: text('reason').notNull(), // TransitionReason enum (stateMachine.ts)
+  actorPersonId: integer('actor_person_id').references(() => person.id, { onDelete: 'set null' }),
+  actorSystem: text('actor_system'), // 'sync'|'system' — set when no human actor
+  metadata: text('metadata'), // JSON blob (appeal note, sync run id, seerr request id, new *arr id)
+  createdAt: text('created_at').notNull()
+}, t => [
+  index('idx_transition_title').on(t.titleId)
+])
+
+// Send ledger for reaping notifications (what we sent, to whom). Separate from title_transition.
+// personId null = broadcast. See docs/adr/0004.
+export const reapingNotification = sqliteTable('reaping_notification', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  titleId: integer('title_id').notNull().references(() => title.id, { onDelete: 'cascade' }),
+  episode: integer('episode').notNull(),
+  event: text('event').notNull(), // 'scheduled'|'reminder'|'reprieved'|'departed'
+  channel: text('channel').notNull(), // 'email' (broadcast channels land in M2)
+  personId: integer('person_id').references(() => person.id, { onDelete: 'set null' }), // null = broadcast
+  status: text('status').notNull(), // 'sent'|'failed'
+  sentAt: text('sent_at').notNull(),
+  metadata: text('metadata') // JSON blob (error, recipient email)
+}, t => [
+  index('idx_notification_title').on(t.titleId)
+])
+
 export const season = sqliteTable('season', {
   titleId: integer('title_id').notNull().references(() => title.id, { onDelete: 'cascade' }),
   seasonNumber: integer('season_number').notNull(),

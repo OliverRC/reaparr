@@ -164,6 +164,33 @@ CREATE TABLE IF NOT EXISTS sync_run (
   counts_json TEXT,
   error TEXT
 );
+
+CREATE TABLE IF NOT EXISTS title_transition (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title_id INTEGER NOT NULL REFERENCES title(id) ON DELETE CASCADE,
+  episode INTEGER NOT NULL,
+  from_state TEXT NOT NULL,
+  to_state TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  actor_person_id INTEGER REFERENCES person(id) ON DELETE SET NULL,
+  actor_system TEXT,
+  metadata TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_transition_title ON title_transition(title_id);
+
+CREATE TABLE IF NOT EXISTS reaping_notification (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title_id INTEGER NOT NULL REFERENCES title(id) ON DELETE CASCADE,
+  episode INTEGER NOT NULL,
+  event TEXT NOT NULL,
+  channel TEXT NOT NULL,
+  person_id INTEGER REFERENCES person(id) ON DELETE SET NULL,
+  status TEXT NOT NULL,
+  sent_at TEXT NOT NULL,
+  metadata TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_notification_title ON reaping_notification(title_id);
 `
 
 // Add columns introduced after a DB was first created (bootstrap's IF NOT EXISTS
