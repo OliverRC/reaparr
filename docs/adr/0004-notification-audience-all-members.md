@@ -25,6 +25,9 @@ channel abstraction avoids baking in email assumptions when Discord arrives late
 - Every send is logged to `reaping_notification` for idempotency and visibility ("3 notified").
 - Email transport is **SMTP via nodemailer** (resolving plan OQ-1), bounded by connection/socket
   timeouts and sent inline, with a log-only fallback when unconfigured so mail is never load-bearing.
+- **Dev catch-all:** in a non-production build, if a dev address is set (`REAPARR_DEV_MAIL_TO` env or
+  `dev_mail_to` setting), every outgoing email is redirected to it (intended recipient preserved in the
+  body) so a developer never spams real members. Never active in production.
 
 ## Consequences
 
