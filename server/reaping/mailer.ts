@@ -1,13 +1,17 @@
-// Email transport behind the Notifier seam (docs/adr/0004, KTD-6). Default is SMTP via nodemailer
-// when configured; otherwise a log-only fallback so the workflow never blocks on mail (email is
-// non-load-bearing). Transport choice is intentionally deferred (plan OQ-1) — swap here, not in
-// callers. nodemailer is resolved lazily via a computed specifier so a missing dep degrades to log
-// rather than failing the build.
+// Email transport behind the Notifier seam (docs/adr/0004, KTD-6). SMTP via nodemailer when
+// configured; otherwise a log-only fallback so the workflow never blocks on mail (email is
+// non-load-bearing). The send is inline but bounded by connection/greeting/socket timeouts, so a
+// dead SMTP server can't hang the sync or an API request. nodemailer is imported lazily so the log
+// path never loads it.
 
 import type { getDb } from '../db/client'
 import { schema } from '../db/client'
 
 type Db = ReturnType<typeof getDb>
+
+// Bound every phase of the SMTP conversation so an unreachable/slow server fails fast (~10s worst
+// case) rather than stalling the request/sync that triggered the send.
+const SMTP_TIMEOUT_MS = 10_000
 
 export interface MailMessage {
   to: string
@@ -48,16 +52,15 @@ export async function sendMail(db: Db, msg: MailMessage): Promise<MailResult> {
     return { ok: true, transport: 'log' }
   }
   try {
-    // Computed specifier so a missing optional dep does not break typecheck/build.
-    const spec = ['node', 'mailer'].join('')
-    const nodemailer = await import(/* @vite-ignore */ spec) as {
-      createTransport: (opts: unknown) => { sendMail: (m: unknown) => Promise<unknown> }
-    }
-    const transport = nodemailer.createTransport({
+    const { createTransport } = await import('nodemailer')
+    const transport = createTransport({
       host: cfg.host,
       port: cfg.port,
       secure: cfg.port === 465,
-      auth: cfg.user ? { user: cfg.user, pass: cfg.pass } : undefined
+      auth: cfg.user ? { user: cfg.user, pass: cfg.pass } : undefined,
+      connectionTimeout: SMTP_TIMEOUT_MS,
+      greetingTimeout: SMTP_TIMEOUT_MS,
+      socketTimeout: SMTP_TIMEOUT_MS
     })
     await transport.sendMail({ from: cfg.from, to: msg.to, subject: msg.subject, text: msg.body })
     return { ok: true, transport: 'smtp' }
