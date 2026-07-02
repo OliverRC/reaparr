@@ -14,6 +14,7 @@ export type TransitionReason
     | 'member_appealed'
     | 'appeal_granted'
     | 'appeal_denied'
+    | 'appeal_withdrawn'
     | 'admin_cancelled'
     | 'auto_reprieve_watched'
     | 'grace_elapsed'
@@ -25,7 +26,7 @@ export type TransitionReason
 export type Actor = { personId: number } | { system: 'sync' | 'system' }
 
 export const REASONS: ReadonlySet<string> = new Set<TransitionReason>([
-  'admin_scheduled', 'member_appealed', 'appeal_granted', 'appeal_denied', 'admin_cancelled',
+  'admin_scheduled', 'member_appealed', 'appeal_granted', 'appeal_denied', 'appeal_withdrawn', 'admin_cancelled',
   'auto_reprieve_watched', 'grace_elapsed', 'admin_marked_removed', 'sync_confirmed_removed', 'resurrected'
 ])
 

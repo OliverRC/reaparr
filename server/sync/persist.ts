@@ -8,6 +8,7 @@ import { resolveIdentities, type RawIdentity } from './identity'
 import { buildTitleIndex, matchTitle, type TitleRef } from './join'
 import { reapScore, type ScoringConfig, type TitleFacts, DEFAULT_SCORING } from './score'
 import { applyTransition } from '../reaping/stateMachine'
+import { emailNotifier } from '../reaping/notifier'
 import type {
   NormalizedHistoryRow, NormalizedMetadata, NormalizedMovie, NormalizedRequest,
   NormalizedSeries, NormalizedSourceUser
@@ -60,7 +61,7 @@ function loadScoringConfig(db: Db): ScoringConfig {
 
 // --- Titles -------------------------------------------------------------------
 
-function persistTitles(db: Db, bundle: SyncBundle): number {
+function persistTitles(db: Db, bundle: SyncBundle, now: number): { discrepancies: number, removed: number[] } {
   // NOTE: the `values` objects below deliberately OMIT `spared`/`sparedAt`, the reaping lifecycle
   // columns (`state`/`episode`/`scheduledAt`/`dueAt`/`sendReminder`/`removedAt`) and the
   // `tautulliKey` (set later). Leaving admin-set / lifecycle columns out of the update-by-
@@ -123,8 +124,8 @@ function persistTitles(db: Db, bundle: SyncBundle): number {
     upsertTitle(db, 'radarr', 'movie', m.sourceId, { tmdbId: m.tmdbId, tvdbId: null }, values)
   }
 
-  reconcileRemovals(db, keep, sourcesOk)
-  return countDiscrepancies(db, keep)
+  const removed = reconcileRemovals(db, keep, sourcesOk, now)
+  return { discrepancies: countDiscrepancies(db, keep), removed }
 }
 
 // Upsert one title, resurrecting a tombstone when a returned title reappears (docs/adr/0002).
@@ -213,17 +214,20 @@ function findTombstone(
 // Tombstone (never delete) titles that are gone from an AUTHORITATIVE source this run. A source that
 // failed/was disabled is skipped (fetch-guard). Already-removed titles and titles from a
 // non-authoritative source are left untouched — their history survives for resurrection.
-function reconcileRemovals(db: Db, keep: Set<string>, sourcesOk: { sonarr: boolean, radarr: boolean }): void {
+function reconcileRemovals(db: Db, keep: Set<string>, sourcesOk: { sonarr: boolean, radarr: boolean }, now: number): number[] {
   const all = db.select({
     id: schema.title.id, source: schema.title.source, sourceId: schema.title.sourceId, state: schema.title.state
   }).from(schema.title).all()
+  const removed: number[] = []
   for (const t of all) {
     if (t.state === 'removed') continue
     const authoritative = sourcesOk[t.source as 'sonarr' | 'radarr']
     if (!authoritative) continue
     if (keep.has(`${t.source}:${t.sourceId}`)) continue
-    applyTransition(db, t.id, { to: 'removed', reason: 'sync_confirmed_removed', actor: { system: 'sync' } })
+    applyTransition(db, t.id, { to: 'removed', reason: 'sync_confirmed_removed', actor: { system: 'sync' }, now })
+    removed.push(t.id)
   }
+  return removed
 }
 
 // --- People & identities ------------------------------------------------------
@@ -524,7 +528,7 @@ export async function persistBundle(bundle: SyncBundle, now: number = Date.now()
   const db = getDb()
   const config = loadScoringConfig(db)
 
-  const discrepancies = persistTitles(db, bundle)
+  const { discrepancies, removed } = persistTitles(db, bundle, now)
   const peopleCount = persistPeople(db, bundle)
 
   // Build the title index AFTER titles are written.
@@ -540,6 +544,13 @@ export async function persistBundle(bundle: SyncBundle, now: number = Date.now()
 
   const needsReview = db.select({ n: sql<number>`count(*)` }).from(schema.person)
     .where(eq(schema.person.matchStatus, 'needs_review')).get()?.n ?? 0
+
+  // Departed always notifies (docs/adr/0004): fire for titles the sync just confirmed removed.
+  for (const id of removed) {
+    const t = db.select({ id: schema.title.id, episode: schema.title.episode, title: schema.title.title, dueAt: schema.title.dueAt })
+      .from(schema.title).where(eq(schema.title.id, id)).get()
+    if (t) await emailNotifier.notify(db, 'departed', t, now)
+  }
 
   return {
     titles: titleRows.length,
