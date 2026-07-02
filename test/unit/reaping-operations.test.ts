@@ -66,6 +66,12 @@ describe('reaping operations', () => {
     expect((await row(id)).state).toBe('scheduled')
     expect(await reasons(id)).toContain('admin_scheduled')
     expect(await events(id)).toContain('scheduled')
+    // no session in M1 → the operator action is recorded as an 'operator' actor, not automated 'system'
+    const { db: db2, schema, eq } = await ctx()
+    const t = db2.select().from(schema.titleTransition).where(eq(schema.titleTransition.titleId, id)).all()
+      .find(x => x.reason === 'admin_scheduled')!
+    expect(t.actorSystem).toBe('operator')
+    expect(t.actorPersonId).toBeNull()
   })
 
   it('honors a grace override and the opt-in reminder', async () => {

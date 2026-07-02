@@ -22,8 +22,11 @@ export type TransitionReason
     | 'sync_confirmed_removed'
     | 'resurrected'
 
-// A transition is caused by exactly one actor: a person (human action) OR the system.
-export type Actor = { personId: number } | { system: 'sync' | 'system' }
+// A transition is caused by exactly one actor: a person (human action) OR the system. The system
+// variant distinguishes: 'sync' (reconciliation), 'system' (automated, e.g. auto-reprieve on watch),
+// and 'operator' (a human operator action taken with no session identity yet — M1; M2's auth swaps
+// these for a real person actor). See docs/adr/0003.
+export type Actor = { personId: number } | { system: 'sync' | 'system' | 'operator' }
 
 export const REASONS: ReadonlySet<string> = new Set<TransitionReason>([
   'admin_scheduled', 'member_appealed', 'appeal_granted', 'appeal_denied', 'appeal_withdrawn', 'admin_cancelled',

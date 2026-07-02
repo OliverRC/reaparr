@@ -13,10 +13,11 @@ type Db = ReturnType<typeof getDb>
 const DEFAULT_GRACE_DAYS = 7
 const DAY_MS = 86_400_000
 
-// M1 has no session (docs/adr/0006): an admin action with no supplied person is recorded as a
-// system actor rather than fabricating an identity. Session-derived person actors arrive in M2.
+// M1 has no session (docs/adr/0006): an admin action with no supplied person is recorded as an
+// 'operator' actor — a human operator with no captured identity — kept distinct from automated
+// 'system' actions so history reads truthfully. Session-derived person actors arrive in M2.
 function adminActor(actorPersonId: number | null): Actor {
-  return actorPersonId != null ? { personId: actorPersonId } : { system: 'system' }
+  return actorPersonId != null ? { personId: actorPersonId } : { system: 'operator' }
 }
 
 export function getGraceDays(db: Db): number {
