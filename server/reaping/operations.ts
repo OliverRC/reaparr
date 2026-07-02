@@ -80,7 +80,23 @@ export async function resolveAppeal(db: Db, titleId: number, decision: 'grant' |
     if (t) await emailNotifier.notify(db, 'reprieved', t, now)
     return res
   }
-  return applyTransition(db, titleId, { to: 'scheduled', reason: 'appeal_denied', actor: adminActor(actorPersonId), now })
+  // Deny: capture the appellant(s) for the current episode BEFORE the transition, then notify them
+  // only (docs/adr/0005 D6) — not the whole member list.
+  const appellants = appellantIds(db, titleId)
+  const res = applyTransition(db, titleId, { to: 'scheduled', reason: 'appeal_denied', actor: adminActor(actorPersonId), now })
+  const t = notifyTitle(db, titleId)
+  if (t && appellants.length) await emailNotifier.notify(db, 'denied', t, now, { targetPersonIds: appellants })
+  return res
+}
+
+// Person ids that raised an appeal in the title's CURRENT episode (deduped).
+function appellantIds(db: Db, titleId: number): number[] {
+  const t = db.select({ episode: schema.title.episode }).from(schema.title).where(eq(schema.title.id, titleId)).get()
+  if (!t) return []
+  const rows = db.select().from(schema.titleTransition).where(eq(schema.titleTransition.titleId, titleId)).all()
+    .filter(r => r.reason === 'member_appealed' && r.episode === t.episode && r.actorPersonId != null)
+    .map(r => r.actorPersonId!)
+  return [...new Set(rows)]
 }
 
 // due → removed (admin actioned removal in the *arr; optimistic). Fires the `departed` notification.

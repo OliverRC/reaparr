@@ -11,12 +11,26 @@ import { sendMail } from './mailer'
 
 type Db = ReturnType<typeof getDb>
 
-export type NotificationEvent = 'scheduled' | 'reminder' | 'reprieved' | 'departed'
+export type NotificationEvent = 'scheduled' | 'reminder' | 'reprieved' | 'departed' | 'denied'
 
 export interface Recipient {
   personId: number
   email: string
   displayName: string
+}
+
+export interface NotifyOptions {
+  // Restrict the send to these persons (still filtered to a resolvable email). Used for the targeted
+  // `denied` notice, which reaches only the appellant(s) — not the whole member list.
+  targetPersonIds?: number[]
+}
+
+// Is email notification enabled? Defaults to on when unset, so demo/first-run still log; the
+// operator turns it off from Settings → Notifications.
+export function notificationsEnabled(db: Db): boolean {
+  const row = db.select({ value: schema.appSetting.value }).from(schema.appSetting)
+    .where(eq(schema.appSetting.key, 'notifications_enabled')).get()
+  return row ? row.value !== '0' && row.value !== 'false' : true
 }
 
 export interface NotifyTitle {
@@ -34,7 +48,16 @@ export interface NotifyResult {
 }
 
 export interface Notifier {
-  notify(db: Db, event: NotificationEvent, title: NotifyTitle, now?: number): Promise<NotifyResult>
+  notify(db: Db, event: NotificationEvent, title: NotifyTitle, now?: number, opts?: NotifyOptions): Promise<NotifyResult>
+}
+
+// Resolve a person's email + name (first resolvable email wins). Used for targeted sends.
+function resolveRecipient(db: Db, personId: number): Recipient | null {
+  const p = db.select().from(schema.person).where(eq(schema.person.id, personId)).get()
+  if (!p) return null
+  const idn = db.select({ email: schema.sourceIdentity.email }).from(schema.sourceIdentity)
+    .where(and(eq(schema.sourceIdentity.personId, personId), isNotNull(schema.sourceIdentity.email))).get()
+  return idn?.email ? { personId, email: idn.email, displayName: p.displayName } : null
 }
 
 // All members (not hidden) that have a resolvable email. Operator included — they can unset their
@@ -44,9 +67,8 @@ export function selectRecipients(db: Db): Recipient[] {
     .where(and(eq(schema.person.isMember, 1), eq(schema.person.isHidden, 0))).all()
   const out: Recipient[] = []
   for (const m of members) {
-    const idn = db.select({ email: schema.sourceIdentity.email }).from(schema.sourceIdentity)
-      .where(and(eq(schema.sourceIdentity.personId, m.id), isNotNull(schema.sourceIdentity.email))).get()
-    if (idn?.email) out.push({ personId: m.id, email: idn.email, displayName: m.displayName })
+    const r = resolveRecipient(db, m.id)
+    if (r) out.push(r)
   }
   return out
 }
@@ -74,6 +96,8 @@ function composeEmail(event: NotificationEvent, title: NotifyTitle, now: number)
       return { subject, body: 'IT WILL STAY. FOR NOW.' }
     case 'departed':
       return { subject, body: 'IT HAS PASSED.' }
+    case 'denied':
+      return { subject, body: 'THE APPEAL IS DENIED. THE HOURGLASS RUNS ON.' }
   }
 }
 
@@ -91,10 +115,16 @@ function alreadySent(db: Db, titleId: number, episode: number, event: Notificati
 }
 
 export class EmailNotifier implements Notifier {
-  async notify(db: Db, event: NotificationEvent, title: NotifyTitle, now: number = Date.now()): Promise<NotifyResult> {
-    const recipients = selectRecipients(db)
-    const nowIso = new Date(now).toISOString()
+  async notify(db: Db, event: NotificationEvent, title: NotifyTitle, now: number = Date.now(), opts?: NotifyOptions): Promise<NotifyResult> {
     const result: NotifyResult = { event, sent: 0, skipped: 0, failed: 0 }
+    // Respect the global notifications toggle — off means no send and no ledger row.
+    if (!notificationsEnabled(db)) return result
+    // Targeted send (e.g. `denied` → appellant only) resolves the given persons; otherwise fan out
+    // to all members.
+    const recipients = opts?.targetPersonIds
+      ? opts.targetPersonIds.map(id => resolveRecipient(db, id)).filter((r): r is Recipient => r != null)
+      : selectRecipients(db)
+    const nowIso = new Date(now).toISOString()
     const { subject, body } = composeEmail(event, title, now)
 
     for (const r of recipients) {

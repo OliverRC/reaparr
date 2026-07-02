@@ -107,6 +107,12 @@ describe('reaping operations', () => {
     await resolveAppeal(db, id, 'deny', null, NOW)
     expect((await row(id)).state).toBe('scheduled')
     expect(await reasons(id)).toContain('appeal_denied')
+    // the appellant is notified of the denial
+    const { db: db2, schema, eq } = await ctx()
+    const denied = db2.select().from(schema.reapingNotification)
+      .where(eq(schema.reapingNotification.titleId, id)).all().filter(n => n.event === 'denied')
+    expect(denied.length).toBe(1)
+    expect(denied[0]!.personId).toBe(memberId)
   })
 
   it('cancels from due back to eligible', async () => {

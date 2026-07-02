@@ -80,6 +80,33 @@ describe('EmailNotifier', () => {
     expect(rows.length).toBe(2) // no new rows
   })
 
+  it('targets only the given persons (denied → appellant only, not all members)', async () => {
+    const { emailNotifier } = await import('../../server/reaping/notifier')
+    const { db, schema, eq, and } = await ctx()
+    const t = await aTitle()
+    const res = await emailNotifier.notify(db, 'denied', { id: t.id, episode: t.episode, title: t.title, dueAt: t.dueAt }, NOW, { targetPersonIds: [memberA] })
+    expect(res.sent).toBe(1)
+    const rows = db.select().from(schema.reapingNotification)
+      .where(and(eq(schema.reapingNotification.titleId, t.id), eq(schema.reapingNotification.event, 'denied'))).all()
+    expect(rows.length).toBe(1)
+    expect(rows[0]!.personId).toBe(memberA)
+    expect(rows.some(r => r.personId === memberB)).toBe(false)
+  })
+
+  it('sends nothing when notifications are disabled', async () => {
+    const { emailNotifier } = await import('../../server/reaping/notifier')
+    const { db, schema, eq, and } = await ctx()
+    db.insert(schema.appSetting).values({ key: 'notifications_enabled', value: '0' })
+      .onConflictDoUpdate({ target: schema.appSetting.key, set: { value: '0' } }).run()
+    const t = await aTitle()
+    const res = await emailNotifier.notify(db, 'reprieved', { id: t.id, episode: t.episode, title: t.title, dueAt: t.dueAt }, NOW)
+    expect(res.sent).toBe(0)
+    const rows = db.select().from(schema.reapingNotification)
+      .where(and(eq(schema.reapingNotification.titleId, t.id), eq(schema.reapingNotification.event, 'reprieved'))).all()
+    expect(rows.length).toBe(0)
+    db.delete(schema.appSetting).where(eq(schema.appSetting.key, 'notifications_enabled')).run() // restore default
+  })
+
   it('records failed rows (without throwing) when SMTP is configured but unreachable', async () => {
     const { emailNotifier } = await import('../../server/reaping/notifier')
     const { db, schema, eq, and } = await ctx()
