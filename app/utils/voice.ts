@@ -23,6 +23,7 @@ export function stateVoice(state: string): StateVoice {
 
 // Headlines, empty states, and confirmations (spec §11). Small-caps rendering is the UI's job.
 export const VOICE = {
+  lifeTimerRoom: 'THE LIFE-TIMER ROOM',
   theSands: 'THE SANDS',
   appointedHour: 'THE APPOINTED HOUR',
   scheduleConfirm: 'AN APPOINTMENT HAS BEEN MADE.',

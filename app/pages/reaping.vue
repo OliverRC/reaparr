@@ -51,12 +51,25 @@ const markRemoved = (r: ReapingRow) => act(`/api/title/${r.id}/mark-removed`, {}
 
 <template>
   <UContainer class="py-6 space-y-8">
+    <!-- The Life-Timer Room: the hall of hourglasses, holding both sub-lists below -->
+    <header class="space-y-1">
+      <VoiceLine
+        as="h1"
+        class="text-3xl text-highlighted"
+      >
+        {{ VOICE.lifeTimerRoom }}
+      </VoiceLine>
+      <p class="text-muted text-sm">
+        Every title with an hourglass — those still running, and those whose sand has run out.
+      </p>
+    </header>
+
     <!-- The Sands -->
     <section class="space-y-3">
       <div class="space-y-1">
         <VoiceLine
-          as="h1"
-          class="text-3xl text-highlighted"
+          as="h2"
+          class="text-2xl text-highlighted"
         >
           {{ VOICE.theSands }}
         </VoiceLine>

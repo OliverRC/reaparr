@@ -13,7 +13,7 @@ useSeoMeta({
 
 const links = [
   { label: 'Books of Life', icon: 'i-lucide-book-open', to: '/' },
-  { label: 'The Sands', icon: 'i-lucide-hourglass', to: '/reaping' },
+  { label: 'The Life-Timer Room', icon: 'i-lucide-hourglass', to: '/reaping' },
   { label: 'People', icon: 'i-lucide-users', to: '/people' },
   { label: 'Settings', icon: 'i-lucide-settings', to: '/settings/connections' }
 ]
