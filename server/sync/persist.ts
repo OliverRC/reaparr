@@ -7,6 +7,7 @@ import { getDb, schema } from '../db/client'
 import { resolveIdentities, type RawIdentity } from './identity'
 import { buildTitleIndex, matchTitle, type TitleRef } from './join'
 import { reapScore, type ScoringConfig, type TitleFacts, DEFAULT_SCORING } from './score'
+import { applyTransition } from '../reaping/stateMachine'
 import type {
   NormalizedHistoryRow, NormalizedMetadata, NormalizedMovie, NormalizedRequest,
   NormalizedSeries, NormalizedSourceUser
@@ -21,6 +22,11 @@ export interface SyncBundle {
   history: NormalizedHistoryRow[]
   // resolve a rating_key (movie) or grandparent_rating_key (episode) → external IDs
   resolveMetadata: (ratingKey: string) => Promise<NormalizedMetadata | null>
+  // Fetch-guard (docs/adr/0002): which title sources were successfully fetched THIS run. A source
+  // that failed or is disabled is not authoritative — its absent titles must NOT be tombstoned
+  // (a transient Sonarr failure would otherwise wipe every series). Defaults to both authoritative
+  // (the demo seed / tests supply a complete bundle).
+  sourcesOk?: { sonarr: boolean, radarr: boolean }
 }
 
 export interface PersistCounts {
@@ -53,16 +59,15 @@ function loadScoringConfig(db: Db): ScoringConfig {
 // --- Titles -------------------------------------------------------------------
 
 function persistTitles(db: Db, bundle: SyncBundle): void {
-  // NOTE: the `values` objects below deliberately OMIT `spared`/`sparedAt` (and the
-  // `tautulliKey`, set later). Leaving admin-set columns out of the update-by-
-  // (source, source_id) upsert is what preserves them across every re-sync. Do not
-  // add them here.
+  // NOTE: the `values` objects below deliberately OMIT `spared`/`sparedAt`, the reaping lifecycle
+  // columns (`state`/`episode`/`scheduledAt`/`dueAt`/`sendReminder`/`removedAt`) and the
+  // `tautulliKey` (set later). Leaving admin-set / lifecycle columns out of the update-by-
+  // (source, source_id) upsert is what preserves them across every re-sync. Do not add them here.
+  const sourcesOk = bundle.sourcesOk ?? { sonarr: true, radarr: true }
   const keep = new Set<string>()
 
   for (const s of bundle.series) {
     keep.add(`sonarr:${s.sourceId}`)
-    const existing = db.select({ id: schema.title.id }).from(schema.title)
-      .where(sql`${schema.title.source} = 'sonarr' and ${schema.title.sourceId} = ${s.sourceId}`).get()
     const values = {
       mediaType: 'series' as const,
       source: 'sonarr',
@@ -83,14 +88,7 @@ function persistTitles(db: Db, bundle: SyncBundle): void {
       ratingImdb: null,
       ratingRt: null
     }
-    let titleId: number
-    if (existing) {
-      db.update(schema.title).set(values).where(eq(schema.title.id, existing.id)).run()
-      titleId = existing.id
-    } else {
-      const r = db.insert(schema.title).values(values).run()
-      titleId = Number(r.lastInsertRowid)
-    }
+    const titleId = upsertTitle(db, 'sonarr', 'series', s.sourceId, { tmdbId: s.tmdbId, tvdbId: s.tvdbId }, values)
     db.delete(schema.season).where(eq(schema.season.titleId, titleId)).run()
     for (const se of s.seasons) {
       db.insert(schema.season).values({
@@ -101,8 +99,6 @@ function persistTitles(db: Db, bundle: SyncBundle): void {
 
   for (const m of bundle.movies) {
     keep.add(`radarr:${m.sourceId}`)
-    const existing = db.select({ id: schema.title.id }).from(schema.title)
-      .where(sql`${schema.title.source} = 'radarr' and ${schema.title.sourceId} = ${m.sourceId}`).get()
     const values = {
       mediaType: 'movie' as const,
       source: 'radarr',
@@ -122,20 +118,81 @@ function persistTitles(db: Db, bundle: SyncBundle): void {
       ratingImdb: m.ratingImdb,
       ratingRt: m.ratingRt
     }
-    if (existing) {
-      db.update(schema.title).set(values).where(eq(schema.title.id, existing.id)).run()
-    } else {
-      db.insert(schema.title).values(values).run()
-    }
+    upsertTitle(db, 'radarr', 'movie', m.sourceId, { tmdbId: m.tmdbId, tvdbId: null }, values)
   }
 
-  // Drop titles no longer present in either *arr (a removed file).
-  const all = db.select({ id: schema.title.id, source: schema.title.source, sourceId: schema.title.sourceId })
-    .from(schema.title).all()
-  for (const t of all) {
-    if (!keep.has(`${t.source}:${t.sourceId}`)) {
-      db.delete(schema.title).where(eq(schema.title.id, t.id)).run()
+  reconcileRemovals(db, keep, sourcesOk)
+}
+
+// Upsert one title, resurrecting a tombstone when a returned title reappears (docs/adr/0002).
+// Matching: (source, source_id) first; if the same source_id was reused after a tombstone, or a
+// re-added title arrives under a NEW *arr id, we reactivate the removed row (same external id) as a
+// new episode. Returns the title row id.
+function upsertTitle(
+  db: Db,
+  source: 'sonarr' | 'radarr',
+  mediaType: 'series' | 'movie',
+  sourceId: number,
+  ext: { tmdbId: number | null, tvdbId: number | null },
+  values: Record<string, unknown>
+): number {
+  const bySourceId = db.select({ id: schema.title.id, state: schema.title.state }).from(schema.title)
+    .where(sql`${schema.title.source} = ${source} and ${schema.title.sourceId} = ${sourceId}`).get()
+
+  if (bySourceId) {
+    db.update(schema.title).set(values).where(eq(schema.title.id, bySourceId.id)).run()
+    if (bySourceId.state === 'removed') {
+      applyTransition(db, bySourceId.id, {
+        to: 'eligible', reason: 'resurrected', actor: { system: 'sync' },
+        metadata: { resurrectedSourceId: sourceId }
+      })
     }
+    return bySourceId.id
+  }
+
+  // No (source, source_id) match — a returning title gets a fresh *arr id. Look for a tombstone
+  // with the same external id under the same source and resurrect it in place.
+  const tomb = findTombstone(db, source, mediaType, ext)
+  if (tomb) {
+    db.update(schema.title).set(values).where(eq(schema.title.id, tomb.id)).run() // sets the new source_id
+    applyTransition(db, tomb.id, {
+      to: 'eligible', reason: 'resurrected', actor: { system: 'sync' },
+      metadata: { previousSourceId: tomb.sourceId, newSourceId: sourceId }
+    })
+    return tomb.id
+  }
+
+  const r = db.insert(schema.title).values(values).run()
+  return Number(r.lastInsertRowid)
+}
+
+function findTombstone(
+  db: Db,
+  source: 'sonarr' | 'radarr',
+  mediaType: 'series' | 'movie',
+  ext: { tmdbId: number | null, tvdbId: number | null }
+): { id: number, sourceId: number } | undefined {
+  const extId = mediaType === 'series' ? ext.tvdbId : ext.tmdbId
+  if (extId == null) return undefined
+  const col = mediaType === 'series' ? schema.title.tvdbId : schema.title.tmdbId
+  return db.select({ id: schema.title.id, sourceId: schema.title.sourceId }).from(schema.title)
+    .where(sql`${schema.title.source} = ${source} and ${schema.title.state} = 'removed' and ${col} = ${extId}`)
+    .get()
+}
+
+// Tombstone (never delete) titles that are gone from an AUTHORITATIVE source this run. A source that
+// failed/was disabled is skipped (fetch-guard). Already-removed titles and titles from a
+// non-authoritative source are left untouched — their history survives for resurrection.
+function reconcileRemovals(db: Db, keep: Set<string>, sourcesOk: { sonarr: boolean, radarr: boolean }): void {
+  const all = db.select({
+    id: schema.title.id, source: schema.title.source, sourceId: schema.title.sourceId, state: schema.title.state
+  }).from(schema.title).all()
+  for (const t of all) {
+    if (t.state === 'removed') continue
+    const authoritative = sourcesOk[t.source as 'sonarr' | 'radarr']
+    if (!authoritative) continue
+    if (keep.has(`${t.source}:${t.sourceId}`)) continue
+    applyTransition(db, t.id, { to: 'removed', reason: 'sync_confirmed_removed', actor: { system: 'sync' } })
   }
 }
 
@@ -375,12 +432,14 @@ function scoreAllTitles(db: Db, config: ScoringConfig, now: number): number {
   const titles = db.select().from(schema.title).all()
   let n = 0
   for (const t of titles) {
+    // Tombstoned titles (a closed episode) hold no live score — they are not candidates.
+    if (t.state === 'removed') continue
     // watched_item rows for this title
     const items = db.select().from(schema.watchedItem).where(eq(schema.watchedItem.titleId, t.id)).all()
     const watched = items.length > 0
     const lastWatchedAt = items.reduce<string | null>((acc, it) => maxIso(acc, it.lastWatchedAt), null)
 
-    let completion = 0
+    let completion: number
     if (t.mediaType === 'movie') {
       completion = items.reduce((acc, it) => Math.max(acc, it.watchedStatus ?? 0), 0)
     } else {

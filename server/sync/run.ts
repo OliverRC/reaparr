@@ -31,7 +31,9 @@ export function isSyncRunning(): boolean {
 
 export async function runSync(now: number = Date.now()): Promise<SyncResult> {
   if (_running) return _running
-  _running = doRun(now).finally(() => { _running = null })
+  _running = doRun(now).finally(() => {
+    _running = null
+  })
   return _running
 }
 

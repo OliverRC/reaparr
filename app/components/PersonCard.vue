@@ -18,7 +18,7 @@ interface Person {
   identities: Identity[]
 }
 
-const props = defineProps<{
+defineProps<{
   person: Person
   selected: boolean
   busy: boolean
@@ -26,11 +26,9 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'toggle-select', id: number): void
-  (e: 'confirm', id: number): void
+  (e: 'toggle-select' | 'confirm', id: number): void
   (e: 'split', personId: number, identityId: number): void
-  (e: 'set-member', id: number, isMember: boolean): void
-  (e: 'set-hidden', id: number, isHidden: boolean): void
+  (e: 'set-member' | 'set-hidden', id: number, flag: boolean): void
 }>()
 
 function statusBadge(s: string) {
@@ -59,12 +57,24 @@ function statusBadge(s: string) {
           @click.stop
         />
         <div class="min-w-0">
-          <div class="font-semibold truncate">{{ person.displayName }}</div>
+          <div class="font-semibold truncate">
+            {{ person.displayName }}
+          </div>
           <div class="mt-1 flex items-center gap-1.5 flex-wrap">
-            <UBadge :color="statusBadge(person.matchStatus).color" variant="subtle" size="sm">
+            <UBadge
+              :color="statusBadge(person.matchStatus).color"
+              variant="subtle"
+              size="sm"
+            >
               {{ statusBadge(person.matchStatus).label }}
             </UBadge>
-            <UBadge v-if="person.isMember" color="primary" variant="subtle" size="sm" icon="i-lucide-user-check">
+            <UBadge
+              v-if="person.isMember"
+              color="primary"
+              variant="subtle"
+              size="sm"
+              icon="i-lucide-user-check"
+            >
               Member
             </UBadge>
           </div>
@@ -103,9 +113,19 @@ function statusBadge(s: string) {
         class="flex items-center justify-between gap-2 text-sm rounded-md bg-elevated/50 px-2 py-1"
       >
         <div class="flex items-center gap-2 min-w-0">
-          <UBadge :color="id.source === 'seerr' ? 'info' : 'primary'" variant="subtle" size="sm" class="capitalize">{{ id.source }}</UBadge>
+          <UBadge
+            :color="id.source === 'seerr' ? 'info' : 'primary'"
+            variant="subtle"
+            size="sm"
+            class="capitalize"
+          >
+            {{ id.source }}
+          </UBadge>
           <span class="truncate">{{ id.username || id.friendlyName || id.email || id.sourceUserId }}</span>
-          <span v-if="id.email" class="text-muted text-xs truncate">{{ id.email }}</span>
+          <span
+            v-if="id.email"
+            class="text-muted text-xs truncate"
+          >{{ id.email }}</span>
         </div>
         <UButton
           v-if="person.identities.length > 1"
@@ -120,7 +140,10 @@ function statusBadge(s: string) {
       </div>
     </div>
 
-    <template v-if="person.matchStatus !== 'confirmed'" #footer>
+    <template
+      v-if="person.matchStatus !== 'confirmed'"
+      #footer
+    >
       <div class="flex items-center justify-end gap-2">
         <UButton
           size="sm"

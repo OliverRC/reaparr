@@ -43,7 +43,9 @@ beforeAll(async () => {
   }
 }, 20000)
 
-afterAll(() => { mock?.kill() })
+afterAll(() => {
+  mock?.kill()
+})
 
 describe('probe against the mock server (all four auth shapes)', () => {
   it('each source probes ok', async () => {
