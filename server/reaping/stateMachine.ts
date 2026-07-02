@@ -4,21 +4,22 @@
 // transaction. Functional names only; the Death voice is a frontend concern (never imported here).
 
 import { eq } from 'drizzle-orm'
-import { getDb, schema } from '../db/client'
+import type { getDb } from '../db/client'
+import { schema } from '../db/client'
 
 export type ReapState = 'eligible' | 'scheduled' | 'appealed' | 'due' | 'removed'
 
-export type TransitionReason =
-  | 'admin_scheduled'
-  | 'member_appealed'
-  | 'appeal_granted'
-  | 'appeal_denied'
-  | 'admin_cancelled'
-  | 'auto_reprieve_watched'
-  | 'grace_elapsed'
-  | 'admin_marked_removed'
-  | 'sync_confirmed_removed'
-  | 'resurrected'
+export type TransitionReason
+  = | 'admin_scheduled'
+    | 'member_appealed'
+    | 'appeal_granted'
+    | 'appeal_denied'
+    | 'admin_cancelled'
+    | 'auto_reprieve_watched'
+    | 'grace_elapsed'
+    | 'admin_marked_removed'
+    | 'sync_confirmed_removed'
+    | 'resurrected'
 
 // A transition is caused by exactly one actor: a person (human action) OR the system.
 export type Actor = { personId: number } | { system: 'sync' | 'system' }

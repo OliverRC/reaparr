@@ -205,7 +205,7 @@ function ensureColumns(sqlite: Database.Database): void {
       ['rating', 'REAL'],
       ['rating_imdb', 'REAL'],
       ['rating_rt', 'INTEGER'],
-      ['state', "TEXT NOT NULL DEFAULT 'eligible'"],
+      ['state', 'TEXT NOT NULL DEFAULT \'eligible\''],
       ['episode', 'INTEGER NOT NULL DEFAULT 1'],
       ['scheduled_at', 'TEXT'],
       ['due_at', 'TEXT'],
