@@ -31,7 +31,8 @@ export const REASONS: ReadonlySet<string> = new Set<TransitionReason>([
 
 // Allowed (from → to) edges. reprieve and resurrection are transitions, not states.
 export const ALLOWED: Readonly<Record<ReapState, ReadonlyArray<ReapState>>> = {
-  eligible: ['scheduled'],
+  // eligible → removed covers an out-of-band deletion of a never-scheduled title (sync tombstone).
+  eligible: ['scheduled', 'removed'],
   scheduled: ['appealed', 'eligible', 'due', 'removed'],
   appealed: ['scheduled', 'eligible', 'removed'], // NOT 'due' — an open appeal blocks the Appointed Hour
   due: ['eligible', 'removed'],

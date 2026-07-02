@@ -4,7 +4,7 @@ useHead({
   link: [{ rel: 'icon', href: '/favicon.ico' }],
   // Dark-lock: `data-color-mode-forced` overrides any stored/system preference,
   // so even a returning visitor who previously chose light renders dark.
-  htmlAttrs: { lang: 'en', 'data-color-mode-forced': 'dark' }
+  htmlAttrs: { 'lang': 'en', 'data-color-mode-forced': 'dark' }
 })
 useSeoMeta({
   title: 'Reaparr',
@@ -22,8 +22,14 @@ const links = [
   <UApp>
     <UHeader>
       <template #left>
-        <NuxtLink to="/" class="flex items-center gap-2 font-bold text-lg">
-          <UIcon name="i-lucide-sprout" class="text-primary size-6" />
+        <NuxtLink
+          to="/"
+          class="flex items-center gap-2 font-bold text-lg"
+        >
+          <UIcon
+            name="i-lucide-sprout"
+            class="text-primary size-6"
+          />
           <span>Reaparr</span>
         </NuxtLink>
       </template>

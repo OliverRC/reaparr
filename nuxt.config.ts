@@ -6,17 +6,6 @@ export default defineNuxtConfig({
     '@nuxt/ui'
   ],
 
-  // Three type roles (R3/R7): serif carries display + Death's voice, sans is the
-  // functional UI, mono is rationed for data. @nuxt/fonts downloads these from
-  // Google and self-hosts them; the families are wired to --font-* in main.css.
-  fonts: {
-    families: [
-      { name: 'EB Garamond', provider: 'google', weights: [500, 600] },
-      { name: 'Hanken Grotesk', provider: 'google', weights: [400, 500, 600] },
-      { name: 'JetBrains Mono', provider: 'google', weights: [400, 500] }
-    ]
-  },
-
   devtools: {
     enabled: true
   },
@@ -51,5 +40,16 @@ export default defineNuxtConfig({
         braceStyle: '1tbs'
       }
     }
+  },
+
+  // Three type roles (R3/R7): serif carries display + Death's voice, sans is the
+  // functional UI, mono is rationed for data. @nuxt/fonts downloads these from
+  // Google and self-hosts them; the families are wired to --font-* in main.css.
+  fonts: {
+    families: [
+      { name: 'EB Garamond', provider: 'google', weights: [500, 600] },
+      { name: 'Hanken Grotesk', provider: 'google', weights: [400, 500, 600] },
+      { name: 'JetBrains Mono', provider: 'google', weights: [400, 500] }
+    ]
   }
 })

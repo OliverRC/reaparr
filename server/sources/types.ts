@@ -3,9 +3,9 @@
 
 export type Source = 'sonarr' | 'radarr' | 'seerr' | 'tautulli'
 
-export type AuthInjection =
-  | { kind: 'header', name: string } // sonarr, radarr, seerr → X-Api-Key
-  | { kind: 'query', param: string } // tautulli → ?apikey=
+export type AuthInjection
+  = | { kind: 'header', name: string } // sonarr, radarr, seerr → X-Api-Key
+    | { kind: 'query', param: string } // tautulli → ?apikey=
 
 export interface ProbeResult { ok: boolean, message: string }
 

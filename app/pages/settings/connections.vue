@@ -78,29 +78,67 @@ function statusMeta(c: Conn) {
   <UContainer class="py-8 space-y-6 max-w-3xl">
     <div class="flex items-center justify-between">
       <div class="space-y-1">
-        <h1 class="text-2xl font-bold">Connections</h1>
-        <p class="text-muted text-sm">Configure each source. Credentials are stored server-side and never shown again.</p>
+        <h1 class="text-2xl font-bold">
+          Connections
+        </h1>
+        <p class="text-muted text-sm">
+          Configure each source. Credentials are stored server-side and never shown again.
+        </p>
       </div>
-      <UButton to="/settings/scoring" color="neutral" variant="ghost" icon="i-lucide-sliders-horizontal">Scoring</UButton>
+      <UButton
+        to="/settings/scoring"
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-sliders-horizontal"
+      >
+        Scoring
+      </UButton>
     </div>
 
-    <div v-if="pending" class="py-10 text-center text-muted">Loading…</div>
+    <div
+      v-if="pending"
+      class="py-10 text-center text-muted"
+    >
+      Loading…
+    </div>
 
-    <div v-else class="space-y-4">
-      <UCard v-for="c in data ?? []" :key="c.source">
+    <div
+      v-else
+      class="space-y-4"
+    >
+      <UCard
+        v-for="c in data ?? []"
+        :key="c.source"
+      >
         <template #header>
           <div class="flex items-center justify-between gap-3">
             <div class="flex items-center gap-2">
               <span class="font-semibold">{{ c.label }}</span>
-              <UBadge :color="statusMeta(c).color" variant="subtle" size="sm">{{ statusMeta(c).label }}</UBadge>
+              <UBadge
+                :color="statusMeta(c).color"
+                variant="subtle"
+                size="sm"
+              >
+                {{ statusMeta(c).label }}
+              </UBadge>
             </div>
-            <USwitch v-model="form[c.source]!.enabled" :label="form[c.source]!.enabled ? 'Enabled' : 'Disabled'" />
+            <USwitch
+              v-model="form[c.source]!.enabled"
+              :label="form[c.source]!.enabled ? 'Enabled' : 'Disabled'"
+            />
           </div>
         </template>
 
         <div class="space-y-3">
-          <UFormField label="Base URL" :help="`Probe: ${c.probeHint}`">
-            <UInput v-model="form[c.source]!.baseUrl" placeholder="http://host:port" class="w-full" />
+          <UFormField
+            label="Base URL"
+            :help="`Probe: ${c.probeHint}`"
+          >
+            <UInput
+              v-model="form[c.source]!.baseUrl"
+              placeholder="http://host:port"
+              class="w-full"
+            />
           </UFormField>
           <UFormField :label="c.credentialLabel">
             <UInput
@@ -110,8 +148,18 @@ function statusMeta(c: Conn) {
               class="w-full"
             />
           </UFormField>
-          <p v-if="c.lastError" class="text-xs text-error">{{ c.lastError }}</p>
-          <p v-if="c.lastSyncedAt" class="text-xs text-muted">Last synced {{ timeAgo(c.lastSyncedAt) }}</p>
+          <p
+            v-if="c.lastError"
+            class="text-xs text-error"
+          >
+            {{ c.lastError }}
+          </p>
+          <p
+            v-if="c.lastSyncedAt"
+            class="text-xs text-muted"
+          >
+            Last synced {{ timeAgo(c.lastSyncedAt) }}
+          </p>
         </div>
 
         <template #footer>
@@ -130,7 +178,14 @@ function statusMeta(c: Conn) {
       </UCard>
 
       <div class="flex justify-end">
-        <UButton color="primary" icon="i-lucide-save" :loading="saving" @click="saveAll">Save all</UButton>
+        <UButton
+          color="primary"
+          icon="i-lucide-save"
+          :loading="saving"
+          @click="saveAll"
+        >
+          Save all
+        </UButton>
       </div>
     </div>
   </UContainer>

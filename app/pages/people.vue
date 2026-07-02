@@ -68,18 +68,32 @@ const showHidden = ref(false)
   <UContainer class="py-8 space-y-6">
     <div class="flex items-start justify-between gap-4 flex-wrap">
       <div class="space-y-1">
-        <h1 class="text-2xl font-bold">People</h1>
+        <h1 class="text-2xl font-bold">
+          People
+        </h1>
         <p class="text-muted text-sm">
           Canonical people are auto-matched across Seerr and Tautulli on email or Plex username. Star active members
           (they'll receive reap notifications), and hide the ones you never want to see.
         </p>
       </div>
       <div class="flex items-center gap-2">
-        <UBadge color="neutral" variant="subtle">{{ data?.total ?? 0 }} people</UBadge>
-        <UBadge color="primary" variant="subtle" icon="i-lucide-user-check">
+        <UBadge
+          color="neutral"
+          variant="subtle"
+        >
+          {{ data?.total ?? 0 }} people
+        </UBadge>
+        <UBadge
+          color="primary"
+          variant="subtle"
+          icon="i-lucide-user-check"
+        >
           {{ data?.memberCount ?? 0 }} members
         </UBadge>
-        <UBadge :color="(data?.needsReview ?? 0) > 0 ? 'warning' : 'success'" variant="subtle">
+        <UBadge
+          :color="(data?.needsReview ?? 0) > 0 ? 'warning' : 'success'"
+          variant="subtle"
+        >
           {{ data?.needsReview ?? 0 }} need review
         </UBadge>
         <UButton
@@ -105,22 +119,54 @@ const showHidden = ref(false)
       class="flex items-center"
     >
       <template #actions>
-        <UButton color="primary" size="sm" :disabled="selected.size < 2" :loading="busy" @click="mergeSelected">
+        <UButton
+          color="primary"
+          size="sm"
+          :disabled="selected.size < 2"
+          :loading="busy"
+          @click="mergeSelected"
+        >
           Merge selected
         </UButton>
-        <UButton color="neutral" variant="ghost" size="sm" @click="exitMergeMode">Cancel</UButton>
+        <UButton
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          @click="exitMergeMode"
+        >
+          Cancel
+        </UButton>
       </template>
     </UAlert>
 
-    <div v-if="pending" class="py-10 text-center text-muted">Loading…</div>
+    <div
+      v-if="pending"
+      class="py-10 text-center text-muted"
+    >
+      Loading…
+    </div>
 
     <template v-else>
       <!-- Members -->
-      <section v-if="members.length" class="space-y-3">
+      <section
+        v-if="members.length"
+        class="space-y-3"
+      >
         <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-user-check" class="size-4 text-primary" />
-          <h2 class="text-sm font-semibold uppercase tracking-wide text-muted">Active members</h2>
-          <UBadge color="primary" variant="subtle" size="sm">{{ members.length }}</UBadge>
+          <UIcon
+            name="i-lucide-user-check"
+            class="size-4 text-primary"
+          />
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-muted">
+            Active members
+          </h2>
+          <UBadge
+            color="primary"
+            variant="subtle"
+            size="sm"
+          >
+            {{ members.length }}
+          </UBadge>
         </div>
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <PersonCard
@@ -140,11 +186,25 @@ const showHidden = ref(false)
       </section>
 
       <!-- Everyone else -->
-      <section v-if="regular.length" class="space-y-3">
+      <section
+        v-if="regular.length"
+        class="space-y-3"
+      >
         <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-users" class="size-4 text-muted" />
-          <h2 class="text-sm font-semibold uppercase tracking-wide text-muted">Everyone else</h2>
-          <UBadge color="neutral" variant="subtle" size="sm">{{ regular.length }}</UBadge>
+          <UIcon
+            name="i-lucide-users"
+            class="size-4 text-muted"
+          />
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-muted">
+            Everyone else
+          </h2>
+          <UBadge
+            color="neutral"
+            variant="subtle"
+            size="sm"
+          >
+            {{ regular.length }}
+          </UBadge>
         </div>
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <PersonCard
@@ -164,17 +224,37 @@ const showHidden = ref(false)
       </section>
 
       <!-- Hidden (collapsed) -->
-      <section v-if="hidden.length" class="space-y-3">
+      <section
+        v-if="hidden.length"
+        class="space-y-3"
+      >
         <button
           class="flex items-center gap-2 text-muted hover:text-default transition-colors"
           @click="showHidden = !showHidden"
         >
-          <UIcon :name="showHidden ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="size-4" />
-          <UIcon name="i-lucide-eye-off" class="size-4" />
-          <h2 class="text-sm font-semibold uppercase tracking-wide">Hidden</h2>
-          <UBadge color="neutral" variant="subtle" size="sm">{{ hidden.length }}</UBadge>
+          <UIcon
+            :name="showHidden ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+            class="size-4"
+          />
+          <UIcon
+            name="i-lucide-eye-off"
+            class="size-4"
+          />
+          <h2 class="text-sm font-semibold uppercase tracking-wide">
+            Hidden
+          </h2>
+          <UBadge
+            color="neutral"
+            variant="subtle"
+            size="sm"
+          >
+            {{ hidden.length }}
+          </UBadge>
         </button>
-        <div v-if="showHidden" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div
+          v-if="showHidden"
+          class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+        >
           <PersonCard
             v-for="p in hidden"
             :key="p.id"
@@ -191,7 +271,10 @@ const showHidden = ref(false)
         </div>
       </section>
 
-      <div v-if="!members.length && !regular.length && !hidden.length" class="py-10 text-center text-muted">
+      <div
+        v-if="!members.length && !regular.length && !hidden.length"
+        class="py-10 text-center text-muted"
+      >
         No people yet — run a sync to populate.
       </div>
     </template>
