@@ -23,12 +23,14 @@
     "@nuxt/ui": "^4.9.0",
     "better-sqlite3": "^12.2.0",
     "drizzle-orm": "^0.44.2",
+    "nodemailer": "^9.0.3",
     "nuxt": "^4.4.8",
     "tailwindcss": "^4.3.1"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.16.0",
     "@types/better-sqlite3": "^7.6.11",
+    "@types/nodemailer": "^8.0.1",
     "drizzle-kit": "^0.31.1",
     "eslint": "^10.6.0",
     "node-gyp": "^12.4.0",

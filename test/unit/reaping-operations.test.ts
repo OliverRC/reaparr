@@ -103,18 +103,6 @@ describe('reaping operations', () => {
     expect(await reasons(id)).toContain('appeal_denied')
   })
 
-  it('extends a running clock without changing state', async () => {
-    const { scheduleTitle, extendClock } = await ops()
-    const { db } = await ctx()
-    const id = await freshTitle()
-    await scheduleTitle(db, id, { graceDays: 3, actorPersonId: null }, NOW)
-    const newDue = new Date(NOW + 10 * DAY).toISOString()
-    extendClock(db, id, newDue)
-    const r = await row(id)
-    expect(r.dueAt).toBe(newDue)
-    expect(r.state).toBe('scheduled')
-  })
-
   it('cancels from due back to eligible', async () => {
     const { scheduleTitle, cancelSchedule } = await ops()
     const { applyTransition } = await sm()

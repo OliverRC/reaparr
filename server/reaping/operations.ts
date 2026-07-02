@@ -57,10 +57,9 @@ export function cancelSchedule(db: Db, titleId: number, actorPersonId: number | 
   return applyTransition(db, titleId, { to: 'eligible', reason: 'admin_cancelled', actor: adminActor(actorPersonId), now })
 }
 
-// Extend / shorten a running clock. Not a state change — a direct dueAt adjustment (M1: unlogged).
-export function extendClock(db: Db, titleId: number, dueAt: string): void {
-  db.update(schema.title).set({ dueAt }).where(eq(schema.title.id, titleId)).run()
-}
+// Note: there is deliberately no extend/shorten. Once the appointment is made and members are
+// notified, the sands don't move — the only escape is to cancel (→ reprieve) and, if wanted,
+// schedule afresh as a new appointment. This keeps the clock and the notified due date honest.
 
 // scheduled → appealed, recorded on a member's behalf (M1). Session-derived identity arrives in M2.
 export function raiseAppeal(db: Db, titleId: number, appellantPersonId: number, now: number = Date.now()) {
