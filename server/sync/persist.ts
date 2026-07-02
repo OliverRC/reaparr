@@ -138,7 +138,7 @@ function upsertTitle(
   mediaType: 'series' | 'movie',
   sourceId: number,
   ext: { tmdbId: number | null, tvdbId: number | null },
-  values: Record<string, unknown>
+  values: typeof schema.title.$inferInsert
 ): number {
   const bySourceId = db.select({ id: schema.title.id, state: schema.title.state }).from(schema.title)
     .where(sql`${schema.title.source} = ${source} and ${schema.title.sourceId} = ${sourceId}`).get()

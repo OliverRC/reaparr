@@ -12,6 +12,15 @@ interface TitleDetail {
   year: number | null
   spared: boolean
   sparedAt: string | null
+  reaping: {
+    state: string
+    episode: number
+    scheduledAt: string | null
+    dueAt: string | null
+    sendReminder: boolean
+    removedAt: string | null
+    history: { episode: number, transitions: { reason: string, fromState: string, toState: string, actor: string, createdAt: string }[] }[]
+  }
   seasonCount: number | null
   sizeOnDisk: number | null
   addedAt: string | null
@@ -95,6 +104,30 @@ const isOpen = computed({
   get: () => props.open,
   set: v => emit('update:open', v)
 })
+
+// --- Reaping actions ----------------------------------------------------------
+const scheduling = ref(false)
+const graceDays = ref(7)
+const includeReminder = ref(false)
+
+async function reapingAct(path: string, body: Record<string, unknown>, ok: string) {
+  if (!data.value) return
+  scheduling.value = true
+  try {
+    await $fetch(`/api/title/${data.value.id}/${path}`, { method: 'POST', body })
+    toast.add({ title: ok, color: 'success', icon: 'i-lucide-hourglass' })
+    await load(data.value.id)
+    emit('spared-changed')
+  } catch (e) {
+    toast.add({ title: 'Action failed', description: (e as Error).message, color: 'error' })
+  } finally {
+    scheduling.value = false
+  }
+}
+
+const scheduleReaping = () => reapingAct('schedule', { graceDays: graceDays.value, sendReminder: includeReminder.value }, VOICE.scheduleConfirm)
+const cancelReaping = () => reapingAct('cancel', {}, 'Cancelled the reaping')
+const markRemoved = () => reapingAct('mark-removed', {}, 'Marked removed')
 
 function episodesWatched(d: TitleDetail | null): number {
   if (!d) return 0
@@ -240,6 +273,121 @@ const ratingItems = computed(() => {
                 Reap Score
               </div>
             </template>
+          </div>
+        </div>
+
+        <!-- Reaping lifecycle -->
+        <div
+          v-if="!data.spared"
+          class="rounded-lg border border-default p-3 space-y-3"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <UBadge
+                :color="stateVoice(data.reaping.state).color"
+                variant="subtle"
+                class="voice-death"
+              >
+                {{ stateVoice(data.reaping.state).label }}
+              </UBadge>
+              <span
+                v-if="data.reaping.episode > 1"
+                class="text-xs text-muted"
+              >Life {{ data.reaping.episode }}</span>
+              <span
+                v-if="data.reaping.dueAt && data.reaping.state !== 'eligible'"
+                class="text-xs text-muted"
+              >due {{ formatDate(data.reaping.dueAt) }}</span>
+            </div>
+          </div>
+
+          <!-- Eligible → schedule form -->
+          <div
+            v-if="data.reaping.state === 'eligible'"
+            class="flex flex-wrap items-end gap-2"
+          >
+            <UFormField
+              label="Grace (days)"
+              size="xs"
+            >
+              <UInput
+                v-model.number="graceDays"
+                type="number"
+                :min="1"
+                class="w-24"
+              />
+            </UFormField>
+            <UCheckbox
+              v-model="includeReminder"
+              label="Include reminder"
+              size="xs"
+            />
+            <UButton
+              size="xs"
+              color="primary"
+              icon="i-lucide-hourglass"
+              :loading="scheduling"
+              @click="scheduleReaping"
+            >
+              Schedule for reaping
+            </UButton>
+          </div>
+
+          <!-- In-workflow → cancel / mark removed -->
+          <div
+            v-else-if="data.reaping.state !== 'removed'"
+            class="flex items-center gap-2"
+          >
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-undo-2"
+              :loading="scheduling"
+              @click="cancelReaping"
+            >
+              Cancel reaping
+            </UButton>
+            <UButton
+              v-if="data.reaping.state === 'due'"
+              size="xs"
+              color="error"
+              icon="i-lucide-check-check"
+              :loading="scheduling"
+              @click="markRemoved"
+            >
+              Mark removed
+            </UButton>
+          </div>
+
+          <!-- History timeline -->
+          <div
+            v-if="data.reaping.history.length"
+            class="pt-1 space-y-2"
+          >
+            <div
+              v-for="life in data.reaping.history"
+              :key="life.episode"
+              class="space-y-1"
+            >
+              <p class="text-[11px] uppercase tracking-wide text-muted">
+                Life {{ life.episode }}
+              </p>
+              <ul class="space-y-0.5">
+                <li
+                  v-for="(tr, i) in life.transitions"
+                  :key="i"
+                  class="text-xs text-muted flex items-center gap-2"
+                >
+                  <UIcon
+                    name="i-lucide-dot"
+                    class="size-3 shrink-0"
+                  />
+                  <span class="text-default">{{ reasonLabel(tr.reason) }}</span>
+                  <span class="text-muted/70">· {{ formatDate(tr.createdAt) }} · {{ tr.actor }}</span>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 

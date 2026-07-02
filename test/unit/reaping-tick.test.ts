@@ -13,7 +13,9 @@ async function ctx() {
   const { eq } = await import('drizzle-orm')
   return { db: getDb(), schema, eq }
 }
-async function sm() { return import('../../server/reaping/stateMachine') }
+async function sm() {
+  return import('../../server/reaping/stateMachine')
+}
 
 // A notifier that records calls instead of sending, so the tick is tested in isolation.
 function fakeNotifier() {

@@ -5,7 +5,6 @@ import { join } from 'node:path'
 
 process.env.REAPARR_DB_PATH = join(mkdtempSync(join(tmpdir(), 'reaparr-read-')), 'test.db')
 const NOW = Date.parse('2026-06-30T00:00:00Z')
-const DAY = 86_400_000
 
 async function ctx() {
   const { getDb, schema } = await import('../../server/db/client')

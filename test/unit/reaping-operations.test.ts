@@ -12,8 +12,12 @@ async function ctx() {
   const { eq, and, isNotNull } = await import('drizzle-orm')
   return { db: getDb(), schema, eq, and, isNotNull }
 }
-async function ops() { return import('../../server/reaping/operations') }
-async function sm() { return import('../../server/reaping/stateMachine') }
+async function ops() {
+  return import('../../server/reaping/operations')
+}
+async function sm() {
+  return import('../../server/reaping/stateMachine')
+}
 
 let memberId: number
 async function freshTitle() {

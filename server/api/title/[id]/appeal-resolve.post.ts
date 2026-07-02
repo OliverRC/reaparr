@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<{ decision?: 'grant' | 'deny', actorPersonId?: number }>(event)
   if (body?.decision !== 'grant' && body?.decision !== 'deny') {
     setResponseStatus(event, 400)
-    return { ok: false, message: "decision must be 'grant' or 'deny'" }
+    return { ok: false, message: 'decision must be \'grant\' or \'deny\'' }
   }
   const db = getDb()
   const t = db.select({ id: schema.title.id }).from(schema.title).where(eq(schema.title.id, id)).get()
