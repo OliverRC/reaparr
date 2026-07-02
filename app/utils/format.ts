@@ -6,6 +6,14 @@ export function formatBytes(bytes: number): string {
   return `${val >= 100 || i === 0 ? Math.round(val) : val.toFixed(1)} ${units[i]}`
 }
 
+// Quick-filter predicate for the dashboard table: case-insensitive substring
+// match on the title. An empty/whitespace query matches everything (no filter).
+export function matchesTitleQuery(title: string, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return title.toLowerCase().includes(q)
+}
+
 export function timeAgo(iso: string | null): string {
   if (!iso) return 'never'
   const then = Date.parse(iso)
