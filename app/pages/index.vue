@@ -47,7 +47,7 @@ function openDetail(id: number) {
     <div class="space-y-1">
       <VoiceLine as="h1" class="text-3xl text-highlighted">Books of Life</VoiceLine>
       <p class="text-muted text-sm">
-        Priority-ranked deletion candidates. Higher Reap Score = stronger candidate. Size shows what you'd reclaim — it never moves the score.
+        Death walks the shelves and considers each book in turn, weighing not how fat it is but how ready. The higher the Reap Score, the more surely its time has come. Size is merely what the shelf gives back once the reaping is done; it sways his hand not at all.
       </p>
     </div>
 
