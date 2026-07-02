@@ -72,15 +72,14 @@ function onSelect(_e: Event, row: TableRow<Row>) {
   emit('select', row.original.id)
 }
 
-// Client-side title filter + pagination over the rows the API already returned.
+// The title filter lives in the page frame (next to the tabs and sort); it is
+// pushed down as a model and here just drives the title column's filter value.
+const filter = defineModel<string>('filter', { default: '' })
 const table = useTemplateRef<{ tableApi?: Table<Row> }>('table')
 const columnFilters = ref<{ id: string, value: string }[]>([])
-const titleFilter = computed<string>({
-  get: () => columnFilters.value.find(f => f.id === 'title')?.value ?? '',
-  set: (v) => {
-    columnFilters.value = v ? [{ id: 'title', value: v }] : []
-  }
-})
+watch(filter, (v) => {
+  columnFilters.value = v ? [{ id: 'title', value: v }] : []
+}, { immediate: true })
 
 const pagination = ref({ pageIndex: 0, pageSize: 25 })
 const filteredCount = computed<number>(() => table.value?.tableApi?.getFilteredRowModel().rows.length ?? props.rows.length)
@@ -88,28 +87,16 @@ const filteredCount = computed<number>(() => table.value?.tableApi?.getFilteredR
 
 <template>
   <div class="space-y-4">
-    <div class="flex">
-      <UInput
-        v-model="titleFilter"
-        icon="i-lucide-search"
-        placeholder="Filter by title…"
-        class="max-w-xs"
-        :ui="{ trailing: 'pe-1' }"
-      >
-        <template
-          v-if="titleFilter"
-          #trailing
-        >
-          <UButton
-            color="neutral"
-            variant="link"
-            size="sm"
-            icon="i-lucide-x"
-            aria-label="Clear filter"
-            @click="() => { titleFilter = '' }"
-          />
-        </template>
-      </UInput>
+    <div
+      v-if="filteredCount > pagination.pageSize"
+      class="flex justify-end"
+    >
+      <UPagination
+        :page="(table?.tableApi?.getState().pagination.pageIndex ?? 0) + 1"
+        :items-per-page="pagination.pageSize"
+        :total="filteredCount"
+        @update:page="(p) => table?.tableApi?.setPageIndex(p - 1)"
+      />
     </div>
 
     <UTable

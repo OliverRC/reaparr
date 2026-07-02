@@ -2,6 +2,7 @@
 const toast = useToast()
 const tab = ref<'series' | 'movie'>('series')
 const sort = ref<'score' | 'size'>('score')
+const titleFilter = ref('')
 
 const query = computed(() => ({ type: tab.value, sort: sort.value }))
 const { data, refresh, pending, error } = await useFetch('/api/dashboard', { query, key: 'dashboard' })
@@ -41,28 +42,51 @@ function openDetail(id: number) {
 <template>
   <UContainer class="py-6 space-y-5">
     <div class="space-y-1">
-      <VoiceLine as="h1" class="text-3xl text-highlighted">Books of Life</VoiceLine>
+      <VoiceLine
+        as="h1"
+        class="text-3xl text-highlighted"
+      >
+        Books of Life
+      </VoiceLine>
       <p class="text-muted text-sm">
         Death walks the shelves and considers each book in turn, weighing how ready it is for the reaping. The higher the Reap Score, the more surely its time has come.
       </p>
     </div>
 
-    <div v-if="!error" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+    <div
+      v-if="!error"
+      class="grid grid-cols-2 sm:grid-cols-4 gap-2.5"
+    >
       <UCard :ui="{ body: 'p-4' }">
-        <div class="text-xs text-muted uppercase tracking-wide">Titles</div>
-        <div class="text-xl font-bold font-mono tabular-nums">{{ data?.count ?? 0 }}</div>
+        <div class="text-xs text-muted uppercase tracking-wide">
+          Titles
+        </div>
+        <div class="text-xl font-bold font-mono tabular-nums">
+          {{ data?.count ?? 0 }}
+        </div>
       </UCard>
       <UCard :ui="{ body: 'p-4' }">
-        <div class="text-xs text-muted uppercase tracking-wide">Total size</div>
-        <div class="text-xl font-bold font-mono tabular-nums">{{ formatBytes(data?.totalSize ?? 0) }}</div>
+        <div class="text-xs text-muted uppercase tracking-wide">
+          Total size
+        </div>
+        <div class="text-xl font-bold font-mono tabular-nums">
+          {{ formatBytes(data?.totalSize ?? 0) }}
+        </div>
       </UCard>
       <UCard :ui="{ body: 'p-4' }">
-        <div class="text-xs text-muted uppercase tracking-wide">Reclaimable (score ≥ 50)</div>
-        <div class="text-xl font-bold font-mono tabular-nums text-error">{{ formatBytes(data?.reclaimable ?? 0) }}</div>
+        <div class="text-xs text-muted uppercase tracking-wide">
+          Reclaimable (score ≥ 50)
+        </div>
+        <div class="text-xl font-bold font-mono tabular-nums text-error">
+          {{ formatBytes(data?.reclaimable ?? 0) }}
+        </div>
       </UCard>
       <UCard :ui="{ body: 'p-4' }">
         <div class="text-xs text-muted uppercase tracking-wide flex items-center gap-1">
-          <UIcon name="i-lucide-shield" class="size-3.5 text-primary" /> Spared
+          <UIcon
+            name="i-lucide-shield"
+            class="size-3.5 text-primary"
+          /> Spared
         </div>
         <div class="text-xl font-bold font-mono tabular-nums">
           {{ data?.sparedCount ?? 0 }}
@@ -73,35 +97,95 @@ function openDetail(id: number) {
 
     <UCard>
       <template #header>
-        <div class="flex items-center justify-between gap-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <UTabs
             v-model="tab"
             :items="tabItems"
             :content="false"
             size="sm"
           />
-          <div class="flex items-center gap-2 text-sm">
-            <span class="text-muted">Sort:</span>
-            <div class="flex gap-1">
-              <UButton size="sm" :color="sort === 'score' ? 'primary' : 'neutral'" :variant="sort === 'score' ? 'solid' : 'outline'" @click="setSort('score')">Score</UButton>
-              <UButton size="sm" :color="sort === 'size' ? 'primary' : 'neutral'" :variant="sort === 'size' ? 'solid' : 'outline'" @click="setSort('size')">Size</UButton>
+          <div class="flex flex-wrap items-center gap-3">
+            <UInput
+              v-model="titleFilter"
+              icon="i-lucide-search"
+              placeholder="Filter by title…"
+              size="sm"
+              class="w-48"
+              :ui="{ trailing: 'pe-1' }"
+            >
+              <template
+                v-if="titleFilter"
+                #trailing
+              >
+                <UButton
+                  color="neutral"
+                  variant="link"
+                  size="sm"
+                  icon="i-lucide-x"
+                  aria-label="Clear filter"
+                  @click="() => { titleFilter = '' }"
+                />
+              </template>
+            </UInput>
+            <div class="flex items-center gap-2 text-sm">
+              <span class="text-muted">Sort:</span>
+              <div class="flex gap-1">
+                <UButton
+                  size="sm"
+                  :color="sort === 'score' ? 'primary' : 'neutral'"
+                  :variant="sort === 'score' ? 'solid' : 'outline'"
+                  @click="setSort('score')"
+                >
+                  Score
+                </UButton>
+                <UButton
+                  size="sm"
+                  :color="sort === 'size' ? 'primary' : 'neutral'"
+                  :variant="sort === 'size' ? 'solid' : 'outline'"
+                  @click="setSort('size')"
+                >
+                  Size
+                </UButton>
+              </div>
             </div>
           </div>
         </div>
       </template>
 
-      <div v-if="error" class="py-12 text-center space-y-4">
-        <VoiceLine class="text-xl text-highlighted">The ledger will not open.</VoiceLine>
-        <p class="text-sm text-muted">The Books of Life could not be read. This is a failure, not an empty library.</p>
-        <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-rotate-cw" @click="() => refresh()">
+      <div
+        v-if="error"
+        class="py-12 text-center space-y-4"
+      >
+        <VoiceLine class="text-xl text-highlighted">
+          The ledger will not open.
+        </VoiceLine>
+        <p class="text-sm text-muted">
+          The Books of Life could not be read. This is a failure, not an empty library.
+        </p>
+        <UButton
+          color="neutral"
+          variant="outline"
+          size="sm"
+          icon="i-lucide-rotate-cw"
+          @click="() => refresh()"
+        >
           Try again
         </UButton>
       </div>
-      <div v-else-if="pending" class="py-12 text-center">
-        <VoiceLine status class="text-xl text-muted">The ledger is being read.</VoiceLine>
+      <div
+        v-else-if="pending"
+        class="py-12 text-center"
+      >
+        <VoiceLine
+          status
+          class="text-xl text-muted"
+        >
+          The ledger is being read.
+        </VoiceLine>
       </div>
       <MediaTable
         v-else
+        v-model:filter="titleFilter"
         :rows="(data?.rows ?? []) as any"
         :type="tab"
         :sort="sort"
@@ -110,10 +194,16 @@ function openDetail(id: number) {
         @spare="onSpare"
       />
       <template #footer>
-        <p class="text-xs text-muted">Click any row for its watch history and links; use the shield to Spare a keeper.</p>
+        <p class="text-xs text-muted">
+          Click any row for its watch history and links; use the shield to Spare a keeper.
+        </p>
       </template>
     </UCard>
 
-    <TitleDetail v-model:open="detailOpen" :id="selectedId" @spared-changed="refresh" />
+    <TitleDetail
+      :id="selectedId"
+      v-model:open="detailOpen"
+      @spared-changed="refresh"
+    />
   </UContainer>
 </template>
