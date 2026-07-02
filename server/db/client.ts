@@ -85,8 +85,9 @@ CREATE TABLE IF NOT EXISTS season (
 
 CREATE TABLE IF NOT EXISTS person (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  match_key TEXT,
   display_name TEXT NOT NULL,
-  match_status TEXT NOT NULL DEFAULT 'auto',
+  custom_name TEXT,
   is_member INTEGER NOT NULL DEFAULT 0,
   is_hidden INTEGER NOT NULL DEFAULT 0
 );
@@ -214,7 +215,10 @@ function ensureColumns(sqlite: Database.Database): void {
     ],
     person: [
       ['is_member', 'INTEGER NOT NULL DEFAULT 0'],
-      ['is_hidden', 'INTEGER NOT NULL DEFAULT 0']
+      ['is_hidden', 'INTEGER NOT NULL DEFAULT 0'],
+      // ADR-0007: match_status retired (left vestigial on old DBs); match_key + custom_name added.
+      ['match_key', 'TEXT'],
+      ['custom_name', 'TEXT']
     ]
   }
   for (const [table, add] of Object.entries(migrations)) {
@@ -224,6 +228,32 @@ function ensureColumns(sqlite: Database.Database): void {
     for (const [name, type] of add) {
       if (!cols.has(name)) sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`)
     }
+  }
+}
+
+// One-time backfill (ADR-0007): give pre-existing persons a match_key derived from their identities
+// (normalized email, else 'source:source_user_id'), so the first reconcile after upgrading matches
+// them by key and preserves their is_member/is_hidden/custom_name and any actor references — instead
+// of deleting and recreating every person. Runs only while persons still lack a key. Persons with no
+// identity, or a key already claimed by another person, are left null: reconcile resolves them.
+function backfillPersonMatchKey(sqlite: Database.Database): void {
+  const pending = sqlite.prepare(`SELECT id FROM person WHERE match_key IS NULL`).all() as { id: number }[]
+  if (pending.length === 0) return
+  const identitiesFor = sqlite.prepare(
+    `SELECT source, source_user_id AS sid, email FROM source_identity WHERE person_id = ? ORDER BY id`
+  )
+  const setKey = sqlite.prepare(`UPDATE person SET match_key = ? WHERE id = ?`)
+  const used = new Set(
+    (sqlite.prepare(`SELECT match_key FROM person WHERE match_key IS NOT NULL`).all() as { match_key: string }[])
+      .map(r => r.match_key)
+  )
+  for (const p of pending) {
+    const ids = identitiesFor.all(p.id) as { source: string, sid: string, email: string | null }[]
+    const withEmail = ids.find(i => i.email && i.email.trim())
+    const key = withEmail ? withEmail.email!.trim().toLowerCase() : (ids[0] ? `${ids[0].source}:${ids[0].sid}` : null)
+    if (!key || used.has(key)) continue
+    used.add(key)
+    setKey.run(key, p.id)
   }
 }
 
@@ -237,6 +267,10 @@ export function getSqlite(): Database.Database {
   sqlite.pragma('foreign_keys = ON')
   sqlite.exec(BOOTSTRAP_SQL)
   ensureColumns(sqlite)
+  // person.match_key is the reconcile upsert key (ADR-0007) — index after the column exists on both
+  // fresh and migrated DBs, then backfill legacy rows so their flags/actor refs survive the upgrade.
+  sqlite.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_person_match_key ON person(match_key)')
+  backfillPersonMatchKey(sqlite)
   _sqlite = sqlite
   return sqlite
 }

@@ -1,5 +1,8 @@
 import { getDb, schema } from '../../db/client'
 
+// People roster for the People page. Each person is a canonical human resolved by email (ADR-0007):
+// displayName is the admin's custom_name if set, else the source-derived name. customName is returned
+// raw so the edit control can prefill / clear it.
 export default defineEventHandler(() => {
   const db = getDb()
   const persons = db.select().from(schema.person).all()
@@ -22,8 +25,8 @@ export default defineEventHandler(() => {
 
   const people = persons.map(p => ({
     id: p.id,
-    displayName: p.displayName,
-    matchStatus: p.matchStatus,
+    displayName: p.customName ?? p.displayName,
+    customName: p.customName,
     isMember: p.isMember === 1,
     isHidden: p.isHidden === 1,
     requestCount: reqCount.get(p.id) ?? 0,
@@ -36,13 +39,9 @@ export default defineEventHandler(() => {
       email: i.email,
       friendlyName: i.friendlyName
     }))
-  })).sort((a, b) => {
-    const order = (s: string) => (s === 'needs_review' ? 0 : s === 'auto' ? 1 : 2)
-    return order(a.matchStatus) - order(b.matchStatus) || a.displayName.localeCompare(b.displayName)
-  })
+  })).sort((a, b) => a.displayName.localeCompare(b.displayName))
 
   return {
-    needsReview: people.filter(p => p.matchStatus === 'needs_review' && !p.isHidden).length,
     memberCount: people.filter(p => p.isMember && !p.isHidden).length,
     hiddenCount: people.filter(p => p.isHidden).length,
     total: people.length,

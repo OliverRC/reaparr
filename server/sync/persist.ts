@@ -4,7 +4,8 @@
 
 import { eq, sql } from 'drizzle-orm'
 import { getDb, schema } from '../db/client'
-import { resolveIdentities, type RawIdentity } from './identity'
+import type { IdentitySource, RawIdentity } from './identity'
+import { reconcile } from '../people/register'
 import { buildTitleIndex, matchTitle, type TitleRef } from './join'
 import { reapScore, type ScoringConfig, type TitleFacts, DEFAULT_SCORING } from './score'
 import { applyTransition } from '../reaping/stateMachine'
@@ -39,7 +40,6 @@ export interface PersistCounts {
   requests: number
   watchEvents: number
   scored: number
-  needsReview: number
   // §7 nudge: admin marked a title removed but it's still present in the *arr this run.
   discrepancies: number
 }
@@ -235,19 +235,15 @@ function reconcileRemovals(db: Db, keep: Set<string>, sourcesOk: { sonarr: boole
 
 // --- People & identities ------------------------------------------------------
 
-function persistPeople(db: Db, bundle: SyncBundle): number {
-  // Fetch-guard (docs/adr/0002): only rebuild identities for a people source that was successfully
-  // fetched this run. A failed source's identities are preserved in place (still attached to their
-  // persons) so a transient failure can't sever a confirmed merge or orphan a member. If neither
-  // source is authoritative, leave identities untouched entirely.
+// Map the fetched source users into the person register (ADR-0007). Only sources fetched OK this run
+// are authoritative — a failed source's identities are preserved by reconcile (fetch-guard, adr/0002),
+// so raws carry only the authoritative sources' users. All person mutation lives in ../people/register.
+function reconcilePeople(db: Db, bundle: SyncBundle): number {
   const seerrOk = bundle.sourcesOk?.seerr ?? true
   const tautulliOk = bundle.sourcesOk?.tautulli ?? true
-  const okSources = new Set<'seerr' | 'tautulli'>()
+  const okSources = new Set<IdentitySource>()
   if (seerrOk) okSources.add('seerr')
   if (tautulliOk) okSources.add('tautulli')
-  if (okSources.size === 0) {
-    return db.select({ n: sql<number>`count(*)` }).from(schema.person).get()?.n ?? 0
-  }
 
   const raws: RawIdentity[] = [
     ...(seerrOk ? bundle.seerrUsers : []).map(u => ({
@@ -258,114 +254,7 @@ function persistPeople(db: Db, bundle: SyncBundle): number {
     }))
   ]
 
-  // Snapshot existing identity→person + confirmed persons BEFORE rewrite.
-  const existingIdentities = db.select().from(schema.sourceIdentity).all()
-  const existingPersons = db.select().from(schema.person).all()
-  const confirmedPersonIds = new Set(existingPersons.filter(p => p.matchStatus === 'confirmed').map(p => p.id))
-  const memberPersonIds = new Set(existingPersons.filter(p => p.isMember === 1).map(p => p.id))
-  const hiddenPersonIds = new Set(existingPersons.filter(p => p.isHidden === 1).map(p => p.id))
-  const identityToPerson = new Map<string, number>() // 'source:userId' → personId
-  // Identity keys that belonged to a member / hidden person — the flag follows the identity across re-matching.
-  const memberIdentityKeys = new Set<string>()
-  const hiddenIdentityKeys = new Set<string>()
-  for (const i of existingIdentities) {
-    if (i.personId != null) {
-      identityToPerson.set(`${i.source}:${i.sourceUserId}`, i.personId)
-      const key = `${i.source}:${i.sourceUserId}`
-      if (memberPersonIds.has(i.personId)) memberIdentityKeys.add(key)
-      if (hiddenPersonIds.has(i.personId)) hiddenIdentityKeys.add(key)
-    }
-  }
-
-  const groups = resolveIdentities(raws)
-
-  // Wipe and rebuild identities for the authoritative sources only; preserved (failed-source)
-  // identities keep pointing at their persons so cross-source merges survive. Persons preserved/
-  // created below.
-  for (const s of okSources) {
-    db.delete(schema.sourceIdentity).where(eq(schema.sourceIdentity.source, s)).run()
-  }
-
-  const usedPersonIds = new Set<number>()
-
-  for (const g of groups) {
-    const memberKeys = g.identities.map(i => `${i.source}:${i.sourceUserId}`)
-    // Which confirmed persons do these identities currently belong to?
-    const confirmedHits = [...new Set(memberKeys.map(k => identityToPerson.get(k)).filter((p): p is number => p != null && confirmedPersonIds.has(p)))]
-
-    if (confirmedHits.length === 1) {
-      // Single confirmed person owns (some of) this group → attach all to it (a manual merge survives).
-      const pid = confirmedHits[0]!
-      usedPersonIds.add(pid)
-      for (const i of g.identities) {
-        db.insert(schema.sourceIdentity).values({
-          personId: pid, source: i.source, sourceUserId: i.sourceUserId, username: i.username, email: i.email, friendlyName: i.friendlyName
-        }).run()
-      }
-    } else if (confirmedHits.length > 1) {
-      // A manual split — keep each identity with its existing confirmed person; others get a fresh person.
-      const freshByStatus = createPerson(db, g.displayName, g.matchStatus)
-      usedPersonIds.add(freshByStatus)
-      for (const i of g.identities) {
-        const existing = identityToPerson.get(`${i.source}:${i.sourceUserId}`)
-        const pid = (existing != null && confirmedPersonIds.has(existing)) ? existing : freshByStatus
-        usedPersonIds.add(pid)
-        db.insert(schema.sourceIdentity).values({
-          personId: pid, source: i.source, sourceUserId: i.sourceUserId, username: i.username, email: i.email, friendlyName: i.friendlyName
-        }).run()
-      }
-    } else {
-      const pid = createPerson(db, g.displayName, g.matchStatus)
-      usedPersonIds.add(pid)
-      for (const i of g.identities) {
-        db.insert(schema.sourceIdentity).values({
-          personId: pid, source: i.source, sourceUserId: i.sourceUserId, username: i.username, email: i.email, friendlyName: i.friendlyName
-        }).run()
-      }
-    }
-  }
-
-  // A person kept alive only by a preserved (failed-source) identity must not be orphaned.
-  if (okSources.size < 2) {
-    for (const i of existingIdentities) {
-      if (i.personId != null && !okSources.has(i.source as 'seerr' | 'tautulli')) {
-        usedPersonIds.add(i.personId)
-      }
-    }
-  }
-
-  // Remove orphan persons (no identities now).
-  for (const p of existingPersons) {
-    if (!usedPersonIds.has(p.id)) {
-      db.delete(schema.person).where(eq(schema.person.id, p.id)).run()
-    }
-  }
-
-  // Re-apply member/hidden flags: any person now owning a formerly-flagged identity keeps the flag.
-  if (memberIdentityKeys.size > 0 || hiddenIdentityKeys.size > 0) {
-    const rebuilt = db.select().from(schema.sourceIdentity).all()
-    const stillMembers = new Set<number>()
-    const stillHidden = new Set<number>()
-    for (const i of rebuilt) {
-      if (i.personId == null) continue
-      const key = `${i.source}:${i.sourceUserId}`
-      if (memberIdentityKeys.has(key)) stillMembers.add(i.personId)
-      if (hiddenIdentityKeys.has(key)) stillHidden.add(i.personId)
-    }
-    for (const pid of stillMembers) {
-      db.update(schema.person).set({ isMember: 1 }).where(eq(schema.person.id, pid)).run()
-    }
-    for (const pid of stillHidden) {
-      db.update(schema.person).set({ isHidden: 1 }).where(eq(schema.person.id, pid)).run()
-    }
-  }
-
-  return db.select({ n: sql<number>`count(*)` }).from(schema.person).get()?.n ?? 0
-}
-
-function createPerson(db: Db, displayName: string, matchStatus: string): number {
-  const r = db.insert(schema.person).values({ displayName, matchStatus }).run()
-  return Number(r.lastInsertRowid)
+  return reconcile(db, raws, okSources)
 }
 
 function personIdForIdentity(db: Db, source: string, sourceUserId: string): number | null {
@@ -568,7 +457,7 @@ export async function persistBundle(bundle: SyncBundle, now: number = Date.now()
   const config = loadScoringConfig(db)
 
   const { discrepancies, removed } = persistTitles(db, bundle, now)
-  const peopleCount = persistPeople(db, bundle)
+  const peopleCount = reconcilePeople(db, bundle)
 
   // Build the title index AFTER titles are written.
   const titleRows = db.select({
@@ -580,9 +469,6 @@ export async function persistBundle(bundle: SyncBundle, now: number = Date.now()
   const reqCount = persistRequests(db, bundle, index)
   const watchCount = await persistWatches(db, bundle, index)
   const scored = scoreAllTitles(db, config, now)
-
-  const needsReview = db.select({ n: sql<number>`count(*)` }).from(schema.person)
-    .where(eq(schema.person.matchStatus, 'needs_review')).get()?.n ?? 0
 
   // Departed always notifies (docs/adr/0004): fire for titles the sync just confirmed removed.
   for (const id of removed) {
@@ -597,7 +483,6 @@ export async function persistBundle(bundle: SyncBundle, now: number = Date.now()
     requests: reqCount,
     watchEvents: watchCount,
     scored,
-    needsReview,
     discrepancies
   }
 }

@@ -82,12 +82,14 @@ describe('identity resolution on demo dataset', () => {
     expect(ids[0]!.source).toBe('tautulli')
   })
 
-  it('flags the Eve/Mallory email-vs-username conflict as needs_review', async () => {
+  it('groups the shared-email Eve/Mallory accounts into one person (email-only, ADR-0007)', async () => {
     const { getDb, schema } = await import('../../server/db/client')
     const { eq } = await import('drizzle-orm')
     const db = getDb()
-    const needsReview = db.select().from(schema.person).where(eq(schema.person.matchStatus, 'needs_review')).all()
-    expect(needsReview.length).toBeGreaterThanOrEqual(1)
+    const shared = db.select().from(schema.person).where(eq(schema.person.matchKey, 'shared@x.com')).get()
+    expect(shared).toBeTruthy()
+    const ids = db.select().from(schema.sourceIdentity).where(eq(schema.sourceIdentity.personId, shared!.id)).all()
+    expect(ids.map(i => i.source).sort()).toEqual(['seerr', 'tautulli'])
   })
 })
 

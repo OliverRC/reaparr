@@ -31,7 +31,8 @@ label, it is noted as a display alias and never appears in data, schema, or iden
 ## Actors & records
 
 - **Person** — the canonical human; linked to Seerr/Tautulli (and, in M2, Plex) via
-  `source_identity`. No admin/member role distinction is stored.
+  `source_identity`. No admin/member role distinction is stored. A Person's display name is
+  `custom_name ?? display_name` — see Reconciliation.
 - **Member** — a person with `is_member = 1`; the notification/appeal audience (all members in v1).
 - **Operator** — the person running Reaparr; in M1 there is no session identity, so the operator
   drives every action and records appeals on a member's behalf.
@@ -41,6 +42,30 @@ label, it is noted as a display alias and never appears in data, schema, or iden
   how a title reached its current state. Never updated or deleted.
 - **Notification ledger** (`reaping_notification`) — what was sent, to whom, per event. Separate from
   the transition log; the two reference each other, they do not merge.
+
+## Reconciliation (the person register)
+
+See [ADR-0007](docs/adr/0007-minimal-identity-resolution.md). Identity is **display-only** — it never
+moves the Reap Score — so resolution is kept minimal.
+
+- **Reconciliation** — resolving Seerr/Tautulli source accounts into canonical Persons each sync.
+  Owned by the **reconciliation module** (the deep module fronting the `person` / `source_identity`
+  tables) behind intent verbs: `reconcile`, `setMember`, `setHidden`, `setDisplayName`.
+- **`reconcile`** — the sync-time pass: cluster identities → upsert the register → delete missing.
+  Deterministic and atomic. Upsert, never wipe-and-rebuild.
+- **SourceIdentity** — one linked source account (`source` = `seerr` | `tautulli`, keyed by
+  `(source, source_user_id)`). Carries `email`, `username` (Plex username), `friendly_name`.
+- **Email clustering** — the **only** match rule: identities sharing a normalized email are one Person;
+  no-email identities stand alone. Plex `username` is stored (display; potential M2 login match) but is
+  **not** a clustering key.
+- **`match_key`** — a Person's stable natural key across syncs: normalized email, or the lone
+  `source:source_user_id` for a no-email single-source Person. Drives the `reconcile` upsert.
+- **`display_name`** — the source-derived name (friendly_name → username → email local-part), refreshed
+  every sync. **`custom_name`** — the admin-set override; the one persisted name decision. Read side
+  shows `custom_name ?? display_name`.
+- **Retired:** `match_status` (`auto`/`confirmed`/`needs_review`) and manual **merge / split / confirm**.
+  Email-only matching produces no conflicts, so there is no review state and no manual re-grouping
+  (ADR-0007).
 
 ## Adjacent terms (pre-existing, kept distinct)
 

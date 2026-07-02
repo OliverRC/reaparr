@@ -109,8 +109,11 @@ export const season = sqliteTable('season', {
 
 export const person = sqliteTable('person', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  displayName: text('display_name').notNull(),
-  matchStatus: text('match_status').notNull().default('auto'), // 'auto'|'confirmed'|'needs_review'
+  // Stable natural key across syncs: normalized email, or 'source:source_user_id' for a no-email
+  // single-source person. Drives the reconcile upsert so flags + custom name survive a re-sync (ADR-0007).
+  matchKey: text('match_key').notNull().unique(),
+  displayName: text('display_name').notNull(), // source-derived (friendly_name → username → email); refreshed each sync
+  customName: text('custom_name'), // admin override; read side shows custom_name ?? display_name
   // Active member of the server: gets reap notifications (delivery is a future feature).
   isMember: integer('is_member').notNull().default(0),
   // Hidden: kept out of the way (bottom section) — noise you don't want to see.
