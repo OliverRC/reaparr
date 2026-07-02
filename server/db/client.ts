@@ -64,6 +64,12 @@ CREATE TABLE IF NOT EXISTS title (
   rating_rt INTEGER,
   spared INTEGER NOT NULL DEFAULT 0,
   spared_at TEXT,
+  state TEXT NOT NULL DEFAULT 'eligible',
+  episode INTEGER NOT NULL DEFAULT 1,
+  scheduled_at TEXT,
+  due_at TEXT,
+  send_reminder INTEGER NOT NULL DEFAULT 0,
+  removed_at TEXT,
   UNIQUE(source, source_id)
 );
 CREATE INDEX IF NOT EXISTS idx_title_tmdb ON title(tmdb_id);
@@ -171,7 +177,13 @@ function ensureColumns(sqlite: Database.Database): void {
       ['spared_at', 'TEXT'],
       ['rating', 'REAL'],
       ['rating_imdb', 'REAL'],
-      ['rating_rt', 'INTEGER']
+      ['rating_rt', 'INTEGER'],
+      ['state', "TEXT NOT NULL DEFAULT 'eligible'"],
+      ['episode', 'INTEGER NOT NULL DEFAULT 1'],
+      ['scheduled_at', 'TEXT'],
+      ['due_at', 'TEXT'],
+      ['send_reminder', 'INTEGER NOT NULL DEFAULT 0'],
+      ['removed_at', 'TEXT']
     ],
     person: [
       ['is_member', 'INTEGER NOT NULL DEFAULT 0'],

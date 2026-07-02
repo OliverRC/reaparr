@@ -46,7 +46,16 @@ export const title = sqliteTable('title', {
   ratingRt: integer('rating_rt'),
   // Spared ("keep forever"): excluded from reaping, pinned to the bottom, score hidden.
   spared: integer('spared').notNull().default(0),
-  sparedAt: text('spared_at')
+  sparedAt: text('spared_at'),
+  // Reaping Workflow lifecycle (functional; voice labels are frontend-only). See CONTEXT.md /
+  // docs/adr/0001. `state` is denormalized = the latest title_transition.to_state. `episode`
+  // increments on resurrection. `removedAt` tombstones the row (never deleted) so history survives.
+  state: text('state').notNull().default('eligible'), // 'eligible'|'scheduled'|'appealed'|'due'|'removed'
+  episode: integer('episode').notNull().default(1),
+  scheduledAt: text('scheduled_at'),
+  dueAt: text('due_at'),
+  sendReminder: integer('send_reminder').notNull().default(0),
+  removedAt: text('removed_at')
 }, t => [
   index('idx_title_source').on(t.source, t.sourceId),
   index('idx_title_tmdb').on(t.tmdbId),
