@@ -108,13 +108,18 @@ async function doRun(now: number): Promise<SyncResult> {
     } catch (err) { errors.tautulli = (err as Error).message }
   }
 
-  // Fetch-guard (docs/adr/0002): a source is authoritative for removals only if it was enabled AND
-  // its fetch succeeded. A failed/disabled source must never tombstone its titles.
+  // Fetch-guard (docs/adr/0002): a source is authoritative for the data derived from it only if it
+  // was enabled AND its fetch succeeded. A failed/disabled source must never wipe its tables —
+  // titles (sonarr/radarr), requests + identities (seerr), watches + identities (tautulli). Seerr
+  // sets a single error for either the users or requests pull, so any Seerr failure conservatively
+  // preserves both its requests and its identities.
   const bundle: SyncBundle = {
     series, movies, seerrUsers, tautulliUsers, requests, history, resolveMetadata,
     sourcesOk: {
       sonarr: !!sonarrCfg && !errors.sonarr,
-      radarr: !!radarrCfg && !errors.radarr
+      radarr: !!radarrCfg && !errors.radarr,
+      seerr: !!seerrCfg && !errors.seerr,
+      tautulli: !!tautCfg && !errors.tautulli
     }
   }
 

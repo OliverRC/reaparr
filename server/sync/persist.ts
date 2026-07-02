@@ -23,11 +23,14 @@ export interface SyncBundle {
   history: NormalizedHistoryRow[]
   // resolve a rating_key (movie) or grandparent_rating_key (episode) → external IDs
   resolveMetadata: (ratingKey: string) => Promise<NormalizedMetadata | null>
-  // Fetch-guard (docs/adr/0002): which title sources were successfully fetched THIS run. A source
-  // that failed or is disabled is not authoritative — its absent titles must NOT be tombstoned
-  // (a transient Sonarr failure would otherwise wipe every series). Defaults to both authoritative
-  // (the demo seed / tests supply a complete bundle).
-  sourcesOk?: { sonarr: boolean, radarr: boolean }
+  // Fetch-guard (docs/adr/0002): which sources were successfully fetched THIS run. A source that
+  // failed or is disabled is not authoritative — the tables derived from it must NOT be wiped or
+  // reconciled against an empty/partial pull (a transient failure would otherwise tombstone every
+  // title, drop every request, or sever confirmed identity merges). Each flag guards its own data:
+  // sonarr/radarr → title removals; seerr → requests + seerr identities; tautulli → watches +
+  // tautulli identities. Missing flags default to authoritative (the demo seed / tests supply a
+  // complete bundle and want a full rebuild).
+  sourcesOk?: { sonarr: boolean, radarr: boolean, seerr?: boolean, tautulli?: boolean }
 }
 
 export interface PersistCounts {
@@ -233,11 +236,24 @@ function reconcileRemovals(db: Db, keep: Set<string>, sourcesOk: { sonarr: boole
 // --- People & identities ------------------------------------------------------
 
 function persistPeople(db: Db, bundle: SyncBundle): number {
+  // Fetch-guard (docs/adr/0002): only rebuild identities for a people source that was successfully
+  // fetched this run. A failed source's identities are preserved in place (still attached to their
+  // persons) so a transient failure can't sever a confirmed merge or orphan a member. If neither
+  // source is authoritative, leave identities untouched entirely.
+  const seerrOk = bundle.sourcesOk?.seerr ?? true
+  const tautulliOk = bundle.sourcesOk?.tautulli ?? true
+  const okSources = new Set<'seerr' | 'tautulli'>()
+  if (seerrOk) okSources.add('seerr')
+  if (tautulliOk) okSources.add('tautulli')
+  if (okSources.size === 0) {
+    return db.select({ n: sql<number>`count(*)` }).from(schema.person).get()?.n ?? 0
+  }
+
   const raws: RawIdentity[] = [
-    ...bundle.seerrUsers.map(u => ({
+    ...(seerrOk ? bundle.seerrUsers : []).map(u => ({
       source: 'seerr' as const, sourceUserId: u.sourceUserId, username: u.username, email: u.email, friendlyName: u.friendlyName
     })),
-    ...bundle.tautulliUsers.map(u => ({
+    ...(tautulliOk ? bundle.tautulliUsers : []).map(u => ({
       source: 'tautulli' as const, sourceUserId: u.sourceUserId, username: u.username, email: u.email, friendlyName: u.friendlyName
     }))
   ]
@@ -263,8 +279,12 @@ function persistPeople(db: Db, bundle: SyncBundle): number {
 
   const groups = resolveIdentities(raws)
 
-  // Wipe and rebuild identities; persons preserved/created below.
-  db.delete(schema.sourceIdentity).run()
+  // Wipe and rebuild identities for the authoritative sources only; preserved (failed-source)
+  // identities keep pointing at their persons so cross-source merges survive. Persons preserved/
+  // created below.
+  for (const s of okSources) {
+    db.delete(schema.sourceIdentity).where(eq(schema.sourceIdentity.source, s)).run()
+  }
 
   const usedPersonIds = new Set<number>()
 
@@ -301,6 +321,15 @@ function persistPeople(db: Db, bundle: SyncBundle): number {
         db.insert(schema.sourceIdentity).values({
           personId: pid, source: i.source, sourceUserId: i.sourceUserId, username: i.username, email: i.email, friendlyName: i.friendlyName
         }).run()
+      }
+    }
+  }
+
+  // A person kept alive only by a preserved (failed-source) identity must not be orphaned.
+  if (okSources.size < 2) {
+    for (const i of existingIdentities) {
+      if (i.personId != null && !okSources.has(i.source as 'seerr' | 'tautulli')) {
+        usedPersonIds.add(i.personId)
       }
     }
   }
@@ -348,6 +377,12 @@ function personIdForIdentity(db: Db, source: string, sourceUserId: string): numb
 // --- Requests -----------------------------------------------------------------
 
 function persistRequests(db: Db, bundle: SyncBundle, index: ReturnType<typeof buildTitleIndex>): number {
+  // Fetch-guard: Seerr failed/absent this run — its requests are not authoritative. Preserve the
+  // existing rows (wiping them would drop every request and blank the request-miss scoring signal
+  // until the next good sync). Report the current row count.
+  if (!(bundle.sourcesOk?.seerr ?? true)) {
+    return db.select({ n: sql<number>`count(*)` }).from(schema.request).get()?.n ?? 0
+  }
   db.delete(schema.request).run()
   let n = 0
   for (const r of bundle.requests) {
@@ -374,6 +409,10 @@ function persistRequests(db: Db, bundle: SyncBundle, index: ReturnType<typeof bu
 // --- Watches ------------------------------------------------------------------
 
 async function persistWatches(db: Db, bundle: SyncBundle, index: ReturnType<typeof buildTitleIndex>): Promise<number> {
+  // Fetch-guard: Tautulli failed/absent — history is not authoritative. Preserve existing watch
+  // rows (wiping them would zero out completion/abandonment scoring until the next good sync). No
+  // new events processed this run.
+  if (!(bundle.sourcesOk?.tautulli ?? true)) return 0
   db.delete(schema.watchedItem).run()
   db.delete(schema.titleWatcher).run()
 
