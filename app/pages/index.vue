@@ -3,9 +3,17 @@ const toast = useToast()
 const tab = ref<'series' | 'movie'>('series')
 const sort = ref<'score' | 'size'>('score')
 const titleFilter = ref('')
+const pagination = ref({ pageIndex: 0, pageSize: 25 })
+const filteredCount = ref(0)
 
 const query = computed(() => ({ type: tab.value, sort: sort.value }))
 const { data, refresh, pending, error } = await useFetch('/api/dashboard', { query, key: 'dashboard' })
+
+// Seed the pager total from the (unfiltered) dataset so it renders during SSR;
+// MediaTable refines this to the live filtered count once the table is mounted.
+watch(() => data.value?.rows?.length ?? 0, (n) => {
+  filteredCount.value = n
+}, { immediate: true })
 
 async function onSpare({ id, title, spared }: { id: number, title: string, spared: boolean }) {
   try {
@@ -109,8 +117,8 @@ function openDetail(id: number) {
               v-model="titleFilter"
               icon="i-lucide-search"
               placeholder="Filter by title…"
-              size="sm"
-              class="w-48"
+              size="lg"
+              class="w-64 sm:w-80"
               :ui="{ trailing: 'pe-1' }"
             >
               <template
@@ -148,6 +156,14 @@ function openDetail(id: number) {
                 </UButton>
               </div>
             </div>
+            <UPagination
+              v-if="filteredCount > pagination.pageSize"
+              :page="pagination.pageIndex + 1"
+              :items-per-page="pagination.pageSize"
+              :total="filteredCount"
+              size="sm"
+              @update:page="(p) => pagination.pageIndex = p - 1"
+            />
           </div>
         </div>
       </template>
@@ -186,6 +202,8 @@ function openDetail(id: number) {
       <MediaTable
         v-else
         v-model:filter="titleFilter"
+        v-model:pagination="pagination"
+        v-model:filtered-count="filteredCount"
         :rows="(data?.rows ?? []) as any"
         :type="tab"
         :sort="sort"
