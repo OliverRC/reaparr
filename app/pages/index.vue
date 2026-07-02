@@ -4,16 +4,32 @@ const tab = ref<'series' | 'movie'>('series')
 const sort = ref<'score' | 'size'>('score')
 const titleFilter = ref('')
 const pagination = ref({ pageIndex: 0, pageSize: 25 })
-const filteredCount = ref(0)
 
 const query = computed(() => ({ type: tab.value, sort: sort.value }))
 const { data, refresh, pending, error } = await useFetch('/api/dashboard', { query, key: 'dashboard' })
 
-// Seed the pager total from the (unfiltered) dataset so it renders during SSR;
-// MediaTable refines this to the live filtered count once the table is mounted.
-watch(() => data.value?.rows?.length ?? 0, (n) => {
-  filteredCount.value = n
-}, { immediate: true })
+// Size the pager off the same predicate the table's title column filters on, so
+// the total stays reactive to the data and the filter without reaching into the
+// table's internal row models.
+const filteredCount = computed(() => {
+  const rows = data.value?.rows ?? []
+  return titleFilter.value
+    ? rows.filter(r => matchesTitleQuery(r.title, titleFilter.value)).length
+    : rows.length
+})
+
+// A filter/tab/sort change reshapes the row set — jump back to the first page so
+// we never strand the table on a page that no longer exists. Assign a fresh
+// object rather than mutating in place: TanStack memoizes its pagination row
+// model on the pagination object's identity, so an in-place edit never re-slices.
+watch([titleFilter, tab, sort], () => {
+  pagination.value = { ...pagination.value, pageIndex: 0 }
+})
+
+// Same reason — hand the pager a new object so the table actually re-paginates.
+function setPage(page: number) {
+  pagination.value = { ...pagination.value, pageIndex: page - 1 }
+}
 
 async function onSpare({ id, title, spared }: { id: number, title: string, spared: boolean }) {
   try {
@@ -157,12 +173,12 @@ function openDetail(id: number) {
               </div>
             </div>
             <UPagination
-              v-if="filteredCount > pagination.pageSize"
+              v-if="!error && !pending && filteredCount > pagination.pageSize"
               :page="pagination.pageIndex + 1"
               :items-per-page="pagination.pageSize"
               :total="filteredCount"
               size="sm"
-              @update:page="(p) => pagination.pageIndex = p - 1"
+              @update:page="setPage"
             />
           </div>
         </div>
@@ -203,7 +219,6 @@ function openDetail(id: number) {
         v-else
         v-model:filter="titleFilter"
         v-model:pagination="pagination"
-        v-model:filtered-count="filteredCount"
         :rows="(data?.rows ?? []) as any"
         :type="tab"
         :sort="sort"
@@ -212,9 +227,19 @@ function openDetail(id: number) {
         @spare="onSpare"
       />
       <template #footer>
-        <p class="text-xs text-muted">
-          Click any row for its watch history and links; use the shield to Spare a keeper.
-        </p>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p class="text-xs text-muted">
+            Click any row for its watch history and links; use the shield to Spare a keeper.
+          </p>
+          <UPagination
+            v-if="!error && !pending && filteredCount > pagination.pageSize"
+            :page="pagination.pageIndex + 1"
+            :items-per-page="pagination.pageSize"
+            :total="filteredCount"
+            size="sm"
+            @update:page="setPage"
+          />
+        </div>
       </template>
     </UCard>
 

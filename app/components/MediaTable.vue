@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { getPaginationRowModel } from '@tanstack/vue-table'
 import type { TableColumn } from '@nuxt/ui'
-import type { Row as TableRow, Table } from '@tanstack/vue-table'
+import type { Row as TableRow } from '@tanstack/vue-table'
 
 interface Row {
   id: number
@@ -73,30 +73,22 @@ function onSelect(_e: Event, row: TableRow<Row>) {
 }
 
 // The title filter and pagination live in the page frame (next to the tabs and
-// sort). They are pushed down as models; the table owns the row models and
-// reports the filtered count back up so the header can size the pager.
+// sort). They are pushed down as models; the table owns the row models. The
+// page derives the filtered count itself (same predicate as the filter column)
+// so the pager total stays reactive without depending on the table internals.
 const filter = defineModel<string>('filter', { default: '' })
 const pagination = defineModel<{ pageIndex: number, pageSize: number }>('pagination', {
   default: () => ({ pageIndex: 0, pageSize: 25 })
 })
-const filteredCount = defineModel<number>('filteredCount', { default: 0 })
 
-const table = useTemplateRef<{ tableApi?: Table<Row> }>('table')
 const columnFilters = ref<{ id: string, value: string }[]>([])
 watch(filter, (v) => {
   columnFilters.value = v ? [{ id: 'title', value: v }] : []
 }, { immediate: true })
-
-watch(
-  () => table.value?.tableApi?.getFilteredRowModel().rows.length ?? props.rows.length,
-  (v) => { filteredCount.value = v },
-  { immediate: true }
-)
 </script>
 
 <template>
   <UTable
-    ref="table"
     v-model:column-filters="columnFilters"
     v-model:pagination="pagination"
     :data="rows"
