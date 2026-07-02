@@ -86,6 +86,13 @@
 /* Carved density: tighter than Nuxt UI's 0.25rem default (R4). */
 :root {
   --ui-radius: 0.125rem;
+
+  /* Admin real estate: this is an operations console, not a marketing page, so
+     let content run full width. Overriding the single container token (default
+     80rem) keeps header, main, and footer aligned to the same edge — the px
+     gutters on UContainer/UHeader/UFooter still hold the margins. Pages that
+     want to stay narrow (settings, people) pin their own max-w-* on top. */
+  --ui-container: 100%;
 }
 
 /* Brighten borders one shade above the dark default (neutral-800 -> -700) so

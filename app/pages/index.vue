@@ -45,7 +45,7 @@ function openDetail(id: number) {
 <template>
   <UContainer class="py-6 space-y-5">
     <div class="space-y-1">
-      <VoiceLine as="h1" class="text-3xl text-highlighted">Reclaim dashboard</VoiceLine>
+      <VoiceLine as="h1" class="text-3xl text-highlighted">Books of Life</VoiceLine>
       <p class="text-muted text-sm">
         Priority-ranked deletion candidates. Higher Reap Score = stronger candidate. Size shows what you'd reclaim — it never moves the score.
       </p>
@@ -98,7 +98,7 @@ function openDetail(id: number) {
 
       <div v-if="error" class="py-12 text-center space-y-4">
         <VoiceLine class="text-xl text-highlighted">The ledger will not open.</VoiceLine>
-        <p class="text-sm text-muted">The dashboard could not be read. This is a failure, not an empty library.</p>
+        <p class="text-sm text-muted">The Books of Life could not be read. This is a failure, not an empty library.</p>
         <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-rotate-cw" @click="() => refresh()">
           Try again
         </UButton>

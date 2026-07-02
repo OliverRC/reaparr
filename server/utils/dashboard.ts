@@ -12,6 +12,7 @@ export interface DashboardRow {
   seasonCount: number | null
   sizeOnDisk: number
   requestedBy: string | null
+  requestedAt: string | null
   watchedBy: string[]
   lastWatchedAt: string | null
   watched: boolean
@@ -40,13 +41,13 @@ export function getDashboard(type: DashboardType, sort: DashboardSort = 'score')
   const requests = db.select().from(schema.request).all()
   const persons = db.select().from(schema.person).all()
   const personName = new Map(persons.map(p => [p.id, p.displayName]))
-  const requestedByTitle = new Map<number, string>()
+  const requestedByTitle = new Map<number, { name: string, at: string | null }>()
   for (const r of requests) {
     if (r.titleId == null) continue
     if (requestedByTitle.has(r.titleId)) continue
     if (r.requestedByPersonId != null) {
       const name = personName.get(r.requestedByPersonId)
-      if (name) requestedByTitle.set(r.titleId, name)
+      if (name) requestedByTitle.set(r.titleId, { name, at: r.requestedAt ?? null })
     }
   }
 
@@ -77,7 +78,8 @@ export function getDashboard(type: DashboardType, sort: DashboardSort = 'score')
       year: t.year,
       seasonCount: t.seasonCount,
       sizeOnDisk: t.sizeOnDisk,
-      requestedBy: requestedByTitle.get(t.id) ?? null,
+      requestedBy: requestedByTitle.get(t.id)?.name ?? null,
+      requestedAt: requestedByTitle.get(t.id)?.at ?? null,
       watchedBy: watchersByTitle.get(t.id) ?? [],
       lastWatchedAt,
       watched: items.length > 0,

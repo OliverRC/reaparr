@@ -12,7 +12,7 @@ useSeoMeta({
 })
 
 const links = [
-  { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/' },
+  { label: 'Books of Life', icon: 'i-lucide-book-open', to: '/' },
   { label: 'People', icon: 'i-lucide-users', to: '/people' },
   { label: 'Settings', icon: 'i-lucide-settings', to: '/settings/connections' }
 ]
@@ -49,7 +49,7 @@ const links = [
     <UFooter>
       <template #left>
         <p class="text-sm text-muted">
-          Reaparr — read-only reclaim dashboard · {{ new Date().getFullYear() }}
+          Reaparr — the read-only Books of Life · {{ new Date().getFullYear() }}
         </p>
       </template>
     </UFooter>

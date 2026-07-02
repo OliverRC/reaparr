@@ -7,6 +7,7 @@ interface Row {
   seasonCount: number | null
   sizeOnDisk: number
   requestedBy: string | null
+  requestedAt: string | null
   watchedBy: string[]
   lastWatchedAt: string | null
   watched: boolean
@@ -96,8 +97,11 @@ const emit = defineEmits<{
           <td class="py-3 px-3 align-top text-right font-mono tabular-nums font-medium border-t border-default">
             {{ formatBytes(row.sizeOnDisk) }}
           </td>
-          <td class="py-3 px-3 align-top border-t border-default">
-            <span v-if="row.requestedBy">{{ row.requestedBy }}</span>
+          <td class="py-3 px-3 align-top border-t border-default whitespace-nowrap">
+            <template v-if="row.requestedBy">
+              <div class="text-default">{{ row.requestedBy }}</div>
+              <div v-if="row.requestedAt" class="text-xs text-muted">{{ timeAgo(row.requestedAt) }}</div>
+            </template>
             <span v-else class="text-muted">—</span>
           </td>
           <td class="py-3 px-3 align-top border-t border-default">
