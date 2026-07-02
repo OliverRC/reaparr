@@ -15,8 +15,10 @@ which in one transaction: validates the transition against an allowed-transition
 append-only `title_transition` row (stamping the current `episode` and a `reason` enum, not prose),
 and updates the denormalized `title.state` (+ clock/`removed_at`/`episode`).
 
-- **Actor model:** exactly one of `actor_person_id` (nullable FK, human actions) or `actor_system`
-  (`sync` | `system`, non-human actions) is populated — enforced at the application layer.
+- **Actor model:** exactly one of `actor_person_id` (nullable FK, human actions with a captured
+  identity) or `actor_system` is populated — enforced at the application layer. `actor_system` is
+  `sync` (reconciliation), `system` (automated, e.g. auto-reprieve on watch), or `operator` (a human
+  operator action taken with no session in M1; M2's auth replaces these with a real person actor).
 - The transition log is **separate from** the `reaping_notification` ledger (ADR-0004). Transitions
   = what happened to the title; notifications = what we sent, to whom. They reference each other;
   they do not merge.

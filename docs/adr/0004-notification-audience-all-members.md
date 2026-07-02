@@ -17,10 +17,14 @@ channel abstraction avoids baking in email assumptions when Discord arrives late
   carrying that person's deep link). A **broadcast** shape (Discord, single webhook) is defined but
   deferred to M2 — the interface must not assume "notify" means "loop over people".
 - **Events:** `scheduled`, `reminder` (opt-in per-schedule, default off), `reprieved` (manual grant +
-  auto-reprieve), `departed`. **Departed always notifies** — admin-marked or sync-confirmed, on-time
-  or early/out-of-band; one rule, no special case.
+  auto-reprieve), `departed`, and `denied`. **Departed always notifies** — admin-marked or
+  sync-confirmed, on-time or early/out-of-band; one rule, no special case. **`denied` is the one
+  targeted event** — it emails only the appellant(s) of the current episode, not the whole member
+  list (D6), via the notifier's per-person targeting.
+- A global **`notifications_enabled`** toggle (default on) silences all sends; the workflow still runs.
 - Every send is logged to `reaping_notification` for idempotency and visibility ("3 notified").
-- Email transport sits behind the notifier with a log-only fallback so mail is never load-bearing.
+- Email transport is **SMTP via nodemailer** (resolving plan OQ-1), bounded by connection/socket
+  timeouts and sent inline, with a log-only fallback when unconfigured so mail is never load-bearing.
 
 ## Consequences
 

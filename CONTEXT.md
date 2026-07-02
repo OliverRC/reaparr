@@ -37,7 +37,8 @@ label, it is noted as a display alias and never appears in data, schema, or iden
 - **Operator** — the person running Reaparr; in M1 there is no session identity, so the operator
   drives every action and records appeals on a member's behalf.
 - **Actor (of a transition)** — either a person (`actor_person_id`) or the system
-  (`actor_system` = `sync` | `system`); exactly one is populated.
+  (`actor_system` = `sync` reconciliation | `system` automated | `operator` a human operator action
+  with no captured session, M1); exactly one is populated.
 - **Transition log** (`title_transition`) — append-only ledger; one row per state change. Explains
   how a title reached its current state. Never updated or deleted.
 - **Notification ledger** (`reaping_notification`) — what was sent, to whom, per event. Separate from
