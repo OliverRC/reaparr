@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { getDb, schema } from '../../db/client'
+import { getTitleHistory } from '../../utils/reaping'
 
 // Detail for a single title: score breakdown, local watch history (from Tautulli),
 // seasons, request info, and deep links into Sonarr/Radarr/Tautulli.
@@ -56,6 +57,16 @@ export default defineEventHandler((event) => {
     year: t.year,
     spared: t.spared === 1,
     sparedAt: t.sparedAt,
+    // Reaping lifecycle (functional; the frontend maps these to Death's voice).
+    reaping: {
+      state: t.state,
+      episode: t.episode,
+      scheduledAt: t.scheduledAt,
+      dueAt: t.dueAt,
+      sendReminder: t.sendReminder === 1,
+      removedAt: t.removedAt,
+      history: getTitleHistory(t.id)
+    },
     seasonCount: t.seasonCount,
     sizeOnDisk: t.sizeOnDisk,
     addedAt: t.addedAt,

@@ -25,6 +25,8 @@ export interface DashboardRow {
   requestMiss: number
   completion: number | null
   spared: boolean
+  state: string
+  dueAt: string | null
 }
 
 export type DashboardType = 'series' | 'movie'
@@ -33,7 +35,9 @@ export type DashboardSort = 'score' | 'size'
 export function getDashboard(type: DashboardType, sort: DashboardSort = 'score'): DashboardRow[] {
   const db = getDb()
 
+  // Tombstoned (removed) titles are a closed episode — they never appear in the candidate list.
   const titles = db.select().from(schema.title).where(eq(schema.title.mediaType, type)).all()
+    .filter(t => t.state !== 'removed')
   const scores = db.select().from(schema.score).all()
   const scoreById = new Map(scores.map(s => [s.titleId, s]))
 
@@ -91,7 +95,9 @@ export function getDashboard(type: DashboardType, sort: DashboardSort = 'score')
       abandonment: s?.abandonment ?? 0,
       requestMiss: s?.requestMiss ?? 0,
       completion: s?.completion ?? null,
-      spared: t.spared === 1
+      spared: t.spared === 1,
+      state: t.state,
+      dueAt: t.dueAt
     }
   })
 
