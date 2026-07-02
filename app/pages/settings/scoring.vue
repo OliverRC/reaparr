@@ -45,14 +45,24 @@ function reset() {
           The only two knobs. The 50 / 30 / 20 weighting is fixed — there is no rule builder by design.
         </p>
       </div>
-      <UButton
-        to="/settings/connections"
-        color="neutral"
-        variant="ghost"
-        icon="i-lucide-plug"
-      >
-        Connections
-      </UButton>
+      <div class="flex gap-2">
+        <UButton
+          to="/settings/connections"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-plug"
+        >
+          Connections
+        </UButton>
+        <UButton
+          to="/settings/notifications"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-mail"
+        >
+          Notifications
+        </UButton>
+      </div>
     </div>
 
     <UCard>

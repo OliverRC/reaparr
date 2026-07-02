@@ -85,14 +85,24 @@ function statusMeta(c: Conn) {
           Configure each source. Credentials are stored server-side and never shown again.
         </p>
       </div>
-      <UButton
-        to="/settings/scoring"
-        color="neutral"
-        variant="ghost"
-        icon="i-lucide-sliders-horizontal"
-      >
-        Scoring
-      </UButton>
+      <div class="flex gap-2">
+        <UButton
+          to="/settings/scoring"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-sliders-horizontal"
+        >
+          Scoring
+        </UButton>
+        <UButton
+          to="/settings/notifications"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-mail"
+        >
+          Notifications
+        </UButton>
+      </div>
     </div>
 
     <div
