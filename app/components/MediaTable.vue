@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { getPaginationRowModel } from '@tanstack/vue-table'
 import type { TableColumn } from '@nuxt/ui'
-import type { Row as TableRow } from '@tanstack/vue-table'
+import type { Row as TableRow, Table } from '@tanstack/vue-table'
 
 interface Row {
   id: number
@@ -38,7 +39,12 @@ const emit = defineEmits<{
 const columns = computed<TableColumn<Row>[]>(() => {
   const cols: TableColumn<Row>[] = [
     { id: 'reapScore', header: 'Reap Score' },
-    { accessorKey: 'title', header: 'Title' },
+    {
+      accessorKey: 'title',
+      header: 'Title',
+      // Quick-filter matches the title only (case-insensitive substring).
+      filterFn: (row, _id, value) => matchesTitleQuery(row.original.title, String(value ?? ''))
+    },
     { id: 'rating', header: 'Rating', meta: { class: { th: 'text-right', td: 'text-right' } } }
   ]
   if (props.type === 'series') {
@@ -65,109 +71,254 @@ const tableMeta = {
 function onSelect(_e: Event, row: TableRow<Row>) {
   emit('select', row.original.id)
 }
+
+// Client-side title filter + pagination over the rows the API already returned.
+const table = useTemplateRef<{ tableApi?: Table<Row> }>('table')
+const columnFilters = ref<{ id: string, value: string }[]>([])
+const titleFilter = computed<string>({
+  get: () => columnFilters.value.find(f => f.id === 'title')?.value ?? '',
+  set: (v) => {
+    columnFilters.value = v ? [{ id: 'title', value: v }] : []
+  }
+})
+
+const pagination = ref({ pageIndex: 0, pageSize: 25 })
+const filteredCount = computed<number>(() => table.value?.tableApi?.getFilteredRowModel().rows.length ?? props.rows.length)
 </script>
 
 <template>
-  <UTable
-    :data="rows"
-    :columns="columns"
-    :meta="tableMeta"
-    @select="onSelect"
-  >
-    <!-- Reap Score header: server-side sort trigger -->
-    <template #reapScore-header>
-      <button class="inline-flex items-center gap-1 hover:text-default" @click="emit('update:sort', 'score')">
-        Reap Score
-        <UIcon v-if="props.sort === 'score'" name="i-lucide-arrow-down" class="size-3.5" />
-      </button>
-    </template>
-    <template #reapScore-cell="{ row }">
-      <div v-if="row.original.spared">
-        <UBadge color="primary" variant="subtle" size="md" icon="i-lucide-shield">Spared</UBadge>
-      </div>
-      <div v-else class="flex items-center gap-2">
-        <UBadge :color="scoreColor(row.original.reapScore)" variant="solid" size="lg" class="font-mono tabular-nums font-bold min-w-10 justify-center">
-          {{ row.original.reapScore }}
-        </UBadge>
-        <UBadge :color="tierMeta(row.original.tier).color" variant="subtle" size="sm">{{ tierMeta(row.original.tier).label }}</UBadge>
-      </div>
-    </template>
+  <div class="space-y-4">
+    <div class="flex">
+      <UInput
+        v-model="titleFilter"
+        icon="i-lucide-search"
+        placeholder="Filter by title…"
+        class="max-w-xs"
+        :ui="{ trailing: 'pe-1' }"
+      >
+        <template
+          v-if="titleFilter"
+          #trailing
+        >
+          <UButton
+            color="neutral"
+            variant="link"
+            size="sm"
+            icon="i-lucide-x"
+            aria-label="Clear filter"
+            @click="() => { titleFilter = '' }"
+          />
+        </template>
+      </UInput>
+    </div>
 
-    <template #title-cell="{ row }">
-      <div class="font-medium text-default">{{ row.original.title }}</div>
-      <div class="text-xs text-muted">{{ row.original.year ?? '' }}</div>
-    </template>
-
-    <template #rating-cell="{ row }">
-      <UBadge
-        v-if="row.original.rating != null"
-        :color="ratingColor(row.original.rating)"
-        variant="subtle"
-        size="md"
-        icon="i-lucide-star"
-        class="font-mono tabular-nums font-medium"
-      >{{ row.original.rating.toFixed(1) }}</UBadge>
-      <span v-else class="text-muted">—</span>
-    </template>
-
-    <template #seasonCount-cell="{ row }">
-      <span class="font-mono tabular-nums">{{ row.original.seasonCount ?? '—' }}</span>
-    </template>
-
-    <!-- Size header: server-side sort trigger -->
-    <template #size-header>
-      <button class="inline-flex items-center gap-1 hover:text-default" @click="emit('update:sort', 'size')">
-        Size
-        <UIcon v-if="props.sort === 'size'" name="i-lucide-arrow-down" class="size-3.5" />
-      </button>
-    </template>
-    <template #size-cell="{ row }">
-      <span class="font-mono tabular-nums font-medium">{{ formatBytes(row.original.sizeOnDisk) }}</span>
-    </template>
-
-    <template #requestedBy-cell="{ row }">
-      <template v-if="row.original.requestedBy">
-        <div class="text-default whitespace-nowrap">{{ row.original.requestedBy }}</div>
-        <div v-if="row.original.requestedAt" class="text-xs text-muted">{{ timeAgo(row.original.requestedAt) }}</div>
+    <UTable
+      ref="table"
+      v-model:column-filters="columnFilters"
+      v-model:pagination="pagination"
+      :data="rows"
+      :columns="columns"
+      :meta="tableMeta"
+      :pagination-options="{ getPaginationRowModel: getPaginationRowModel() }"
+      @select="onSelect"
+    >
+      <!-- Reap Score header: server-side sort trigger -->
+      <template #reapScore-header>
+        <button
+          class="inline-flex items-center gap-1 hover:text-default"
+          @click="emit('update:sort', 'score')"
+        >
+          Reap Score
+          <UIcon
+            v-if="props.sort === 'score'"
+            name="i-lucide-arrow-down"
+            class="size-3.5"
+          />
+        </button>
       </template>
-      <span v-else class="text-muted">—</span>
-    </template>
+      <template #reapScore-cell="{ row }">
+        <div v-if="row.original.spared">
+          <UBadge
+            color="primary"
+            variant="subtle"
+            size="md"
+            icon="i-lucide-shield"
+          >
+            Spared
+          </UBadge>
+        </div>
+        <div
+          v-else
+          class="flex items-center gap-2"
+        >
+          <UBadge
+            :color="scoreColor(row.original.reapScore)"
+            variant="solid"
+            size="lg"
+            class="font-mono tabular-nums font-bold min-w-10 justify-center"
+          >
+            {{ row.original.reapScore }}
+          </UBadge>
+          <UBadge
+            :color="tierMeta(row.original.tier).color"
+            variant="subtle"
+            size="sm"
+          >
+            {{ tierMeta(row.original.tier).label }}
+          </UBadge>
+        </div>
+      </template>
 
-    <template #watchedBy-cell="{ row }">
-      <div v-if="row.original.watchedBy.length" class="flex flex-wrap gap-1">
-        <UBadge v-for="w in row.original.watchedBy" :key="w" color="neutral" variant="subtle" size="sm">{{ w }}</UBadge>
-      </div>
-      <span v-else class="text-muted">nobody</span>
-    </template>
+      <template #title-cell="{ row }">
+        <div class="font-medium text-default">
+          {{ row.original.title }}
+        </div>
+        <div class="text-xs text-muted">
+          {{ row.original.year ?? '' }}
+        </div>
+      </template>
 
-    <template #lastWatched-cell="{ row }">
-      <span class="whitespace-nowrap" :class="row.original.watched ? '' : 'text-error'">
-        {{ row.original.watched ? timeAgo(row.original.lastWatchedAt) : 'never' }}
-      </span>
-    </template>
+      <template #rating-cell="{ row }">
+        <UBadge
+          v-if="row.original.rating != null"
+          :color="ratingColor(row.original.rating)"
+          variant="subtle"
+          size="md"
+          icon="i-lucide-star"
+          class="font-mono tabular-nums font-medium"
+        >
+          {{ row.original.rating.toFixed(1) }}
+        </UBadge>
+        <span
+          v-else
+          class="text-muted"
+        >—</span>
+      </template>
 
-    <template #reasons-cell="{ row }">
-      <div v-if="!row.original.spared" class="flex flex-wrap gap-1 max-w-xs">
-        <UBadge v-for="(r, i) in row.original.reasons" :key="i" color="neutral" variant="outline" size="sm">{{ r }}</UBadge>
-      </div>
-      <span v-else class="text-xs text-muted italic">Kept forever — not scored</span>
-    </template>
+      <template #seasonCount-cell="{ row }">
+        <span class="font-mono tabular-nums">{{ row.original.seasonCount ?? '—' }}</span>
+      </template>
 
-    <template #actions-cell="{ row }">
-      <UTooltip :text="row.original.spared ? 'Return to the reap' : 'Spare (keep forever)'">
-        <UButton
-          :icon="row.original.spared ? 'i-lucide-shield-off' : 'i-lucide-shield'"
-          :color="row.original.spared ? 'neutral' : 'primary'"
-          variant="ghost"
-          size="sm"
-          :aria-label="row.original.spared ? 'Return to the reap' : 'Spare'"
-          @click="emit('spare', { id: row.original.id, title: row.original.title, spared: !row.original.spared })"
-        />
-      </UTooltip>
-    </template>
+      <!-- Size header: server-side sort trigger -->
+      <template #size-header>
+        <button
+          class="inline-flex items-center gap-1 hover:text-default"
+          @click="emit('update:sort', 'size')"
+        >
+          Size
+          <UIcon
+            v-if="props.sort === 'size'"
+            name="i-lucide-arrow-down"
+            class="size-3.5"
+          />
+        </button>
+      </template>
+      <template #size-cell="{ row }">
+        <span class="font-mono tabular-nums font-medium">{{ formatBytes(row.original.sizeOnDisk) }}</span>
+      </template>
 
-    <template #empty>
-      <VoiceLine class="text-lg text-muted">There is nothing here to reap.</VoiceLine>
-    </template>
-  </UTable>
+      <template #requestedBy-cell="{ row }">
+        <template v-if="row.original.requestedBy">
+          <div class="text-default whitespace-nowrap">
+            {{ row.original.requestedBy }}
+          </div>
+          <div
+            v-if="row.original.requestedAt"
+            class="text-xs text-muted"
+          >
+            {{ timeAgo(row.original.requestedAt) }}
+          </div>
+        </template>
+        <span
+          v-else
+          class="text-muted"
+        >—</span>
+      </template>
+
+      <template #watchedBy-cell="{ row }">
+        <div
+          v-if="row.original.watchedBy.length"
+          class="flex flex-wrap gap-1"
+        >
+          <UBadge
+            v-for="w in row.original.watchedBy"
+            :key="w"
+            color="neutral"
+            variant="subtle"
+            size="sm"
+          >
+            {{ w }}
+          </UBadge>
+        </div>
+        <span
+          v-else
+          class="text-muted"
+        >nobody</span>
+      </template>
+
+      <template #lastWatched-cell="{ row }">
+        <span
+          class="whitespace-nowrap"
+          :class="row.original.watched ? '' : 'text-error'"
+        >
+          {{ row.original.watched ? timeAgo(row.original.lastWatchedAt) : 'never' }}
+        </span>
+      </template>
+
+      <template #reasons-cell="{ row }">
+        <div
+          v-if="!row.original.spared"
+          class="flex flex-wrap gap-1 max-w-xs"
+        >
+          <UBadge
+            v-for="(r, i) in row.original.reasons"
+            :key="i"
+            color="neutral"
+            variant="outline"
+            size="sm"
+          >
+            {{ r }}
+          </UBadge>
+        </div>
+        <span
+          v-else
+          class="text-xs text-muted italic"
+        >Kept forever — not scored</span>
+      </template>
+
+      <template #actions-header>
+        <span class="sr-only">Actions</span>
+      </template>
+      <template #actions-cell="{ row }">
+        <UTooltip :text="row.original.spared ? 'Return to the reap' : 'Spare (keep forever)'">
+          <UButton
+            :icon="row.original.spared ? 'i-lucide-shield-off' : 'i-lucide-shield'"
+            :color="row.original.spared ? 'neutral' : 'primary'"
+            variant="ghost"
+            size="sm"
+            :aria-label="row.original.spared ? 'Return to the reap' : 'Spare'"
+            @click="emit('spare', { id: row.original.id, title: row.original.title, spared: !row.original.spared })"
+          />
+        </UTooltip>
+      </template>
+
+      <template #empty>
+        <VoiceLine class="text-lg text-muted">
+          There is nothing here to reap.
+        </VoiceLine>
+      </template>
+    </UTable>
+
+    <div
+      v-if="filteredCount > pagination.pageSize"
+      class="flex justify-end"
+    >
+      <UPagination
+        :page="(table?.tableApi?.getState().pagination.pageIndex ?? 0) + 1"
+        :items-per-page="pagination.pageSize"
+        :total="filteredCount"
+        @update:page="(p) => table?.tableApi?.setPageIndex(p - 1)"
+      />
+    </div>
+  </div>
 </template>
